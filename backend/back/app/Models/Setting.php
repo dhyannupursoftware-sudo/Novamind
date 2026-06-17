@@ -18,7 +18,15 @@ class Setting extends Model
         'theme',
         'language',
         'model',
+        'notifications',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'notifications' => 'boolean',
+        ];
+    }
 
     public function user(): BelongsTo
     {

@@ -250,10 +250,11 @@ export function SettingsModal({ isOpen, onClose }: ModalProps) {
   const [theme, setTheme] = useState<ThemeMode>(settings.theme)
   const [language, setLanguage] = useState(settings.language)
   const [model, setModel] = useState(settings.model)
+  const [notifications, setNotifications] = useState(settings.notifications)
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
-    await updateSettings({ theme, language, model })
+    await updateSettings({ theme, language, model, notifications })
     
     // Apply theme changes instantly to document body
     if (theme === 'light') {
@@ -352,9 +353,20 @@ export function SettingsModal({ isOpen, onClose }: ModalProps) {
                 </select>
               </label>
 
+              {/* Notification Settings */}
+              <label className="flex items-center gap-3 cursor-pointer select-none pt-1">
+                <input
+                  type="checkbox"
+                  checked={notifications}
+                  onChange={(e) => setNotifications(e.target.checked)}
+                  className="size-4 rounded border-white/10 bg-slate-950 text-cyan-400 focus:ring-0 focus:ring-offset-0 focus:outline-none cursor-pointer"
+                />
+                <span className="text-sm font-medium text-slate-300">Enable Push Notifications</span>
+              </label>
+
               <div className="flex items-center gap-2 rounded-lg border border-cyan-500/20 bg-cyan-950/30 p-3 text-xs leading-5 text-cyan-200">
                 <Sparkles size={16} className="shrink-0 text-cyan-400" />
-                <span>Adjusting options updates settings for both speech typing and simulated AI replies instantly.</span>
+                <span>Adjusting options updates settings for speech typing, push alerts, and LLM model routing.</span>
               </div>
 
               {/* Actions */}

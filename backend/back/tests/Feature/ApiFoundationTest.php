@@ -65,7 +65,8 @@ class ApiFoundationTest extends TestCase
 
         $messageResponse
             ->assertCreated()
-            ->assertJsonPath('data.role', 'user')
-            ->assertJsonPath('data.content', 'Draft a launch plan.');
+            ->assertJsonPath('data.user.role', 'user')
+            ->assertJsonPath('data.user.content', 'Draft a launch plan.')
+            ->assertJsonPath('data.assistant.role', 'assistant');
     }
 }

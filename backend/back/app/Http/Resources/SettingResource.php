@@ -18,6 +18,7 @@ class SettingResource extends JsonResource
             'theme' => $this->theme,
             'language' => $this->language,
             'model' => $this->model,
+            'notifications' => (bool) $this->notifications,
             'updated_at' => $this->updated_at?->toISOString(),
         ];
     }

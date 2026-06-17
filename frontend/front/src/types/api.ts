@@ -7,6 +7,7 @@ export interface UserSettings {
   theme: ThemeMode
   language: string
   model: string
+  notifications: boolean
   updated_at: string | null
 }
 

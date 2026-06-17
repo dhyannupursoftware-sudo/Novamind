@@ -68,6 +68,11 @@ interface ChatContextValue {
   // Speech Recognition
   isListening: boolean
   toggleSpeechRecognition: (onTranscript: (text: string) => void) => void
+
+  // Speech Playback (TTS)
+  speakingMessageId: number | null
+  speakText: (messageId: number, text: string) => void
+  stopSpeaking: () => void
 }
 
 const ChatContext = createContext<ChatContextValue | undefined>(undefined)
@@ -79,6 +84,7 @@ function defaultSettings(userId = 0): UserSettings {
     theme: 'dark',
     language: 'en',
     model: 'nova-pro',
+    notifications: true,
     updated_at: null,
   }
 }
@@ -257,31 +263,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     }
   }, [selectedChat, showToast])
 
-  // Build simulated replies with premium response styles
-  const buildAssistantReply = (input: string, model: string, attachments: Attachment[]): string => {
-    const listAttachmentsText = attachments.length > 0 
-      ? `\n\nI processed your attached file(s): ${attachments.map(a => `**${a.name}**`).join(', ')}. `
-      : '';
-      
-    const promptSummary = input.trim().length > 0 
-      ? `Regarding: *"${input.length > 80 ? input.slice(0, 80) + '...' : input}"*`
-      : 'Regarding the attachments';
-
-    return `### NovaMind AI Response (${model})
-Greetings! ${promptSummary}
-
-I have successfully cataloged your request and integrated the inputs into your workspace. 
-Here is a comprehensive breakdown:
-
-1. **Intelligent Processing**: Inputs parsed on the \`${model}\` LLM architecture.
-2. **Persistence**: Structured securely in your Sanctum database environment.${listAttachmentsText}
-3. **Suggested Next Steps**:
-   - Write dynamic code scripts by supplying file templates.
-   - Refine parameters in **Settings** panel.
-
-How else can I assist you in this session?`;
-  }
-
   // Send message
   const sendMessage = useCallback(async (content: string, attachments: Attachment[] = []) => {
     if ((!content.trim() && attachments.length === 0) || isSending) return
@@ -294,27 +275,17 @@ How else can I assist you in this session?`;
         activeChat = await createChat(content.trim() ? content.trim() : 'Attachment Upload')
       }
 
-      // 1. Post User message
-      const userRes = await api.post<ApiResource<ExtendedMessage>>(`/chats/${activeChat.id}/messages`, {
+      // Post payload and retrieve both user and assistant responses
+      const { data } = await api.post<ApiResource<{ user: ExtendedMessage; assistant: ExtendedMessage }>>(`/chats/${activeChat.id}/messages`, {
         role: 'user',
         content: content.trim(),
         attachments: attachments.length > 0 ? attachments : null,
       })
-      setMessages((prev) => [...prev, userRes.data.data])
+      
+      setMessages((prev) => [...prev, data.data.user, data.data.assistant])
 
       // Trigger loadChats to refresh titles/counts/sorting on sidebar
       void loadChats()
-
-      // Typing simulation delay (e.g. 1.2s)
-      await new Promise((resolve) => setTimeout(resolve, 1200))
-
-      // 2. Post Assistant reply
-      const assistantRes = await api.post<ApiResource<ExtendedMessage>>(`/chats/${activeChat.id}/messages`, {
-        role: 'assistant',
-        content: buildAssistantReply(content, settings.model, attachments),
-        attachments: null,
-      })
-      setMessages((prev) => [...prev, assistantRes.data.data])
 
       // Final synchronization
       const chatDetails = await api.get<ApiResource<ExtendedChat>>(`/chats/${activeChat.id}`)
@@ -326,7 +297,7 @@ How else can I assist you in this session?`;
     } finally {
       setIsSending(false)
     }
-  }, [selectedChat, createChat, loadChats, settings.model, isSending, showToast])
+  }, [selectedChat, createChat, loadChats, isSending, showToast])
 
   // Save/Update settings
   const updateSettings = useCallback(async (newSettings: Partial<UserSettings>) => {
@@ -336,6 +307,7 @@ How else can I assist you in this session?`;
         theme: newSettings.theme ?? settings.theme,
         language: newSettings.language ?? settings.language,
         model: newSettings.model ?? settings.model,
+        notifications: newSettings.notifications ?? settings.notifications,
       }
       const { data } = await api.patch<ApiResource<UserSettings>>('/settings', payload)
       setSettings(data.data)
@@ -402,6 +374,43 @@ How else can I assist you in this session?`;
     }
   }, [recognition, isListening, showToast])
 
+  // Speech Playback (TTS)
+  const [speakingMessageId, setSpeakingMessageId] = useState<number | null>(null)
+
+  const stopSpeaking = useCallback(() => {
+    window.speechSynthesis.cancel()
+    setSpeakingMessageId(null)
+  }, [])
+
+  const speakText = useCallback((messageId: number, text: string) => {
+    window.speechSynthesis.cancel()
+
+    if (speakingMessageId === messageId) {
+      setSpeakingMessageId(null)
+      return
+    }
+
+    const cleanText = text
+      .replace(/#+\s+/g, '')
+      .replace(/\*\*|__/g, '')
+      .replace(/\*|_/g, '')
+      .replace(/`{3}[\s\S]*?`{3}/g, '[Code block]')
+      .replace(/`([^`]+)`/g, '$1')
+
+    const utterance = new SpeechSynthesisUtterance(cleanText)
+    utterance.lang = settings.language === 'en' ? 'en-US' : settings.language === 'es' ? 'es-ES' : settings.language === 'fr' ? 'fr-FR' : 'hi-IN'
+
+    utterance.onend = () => {
+      setSpeakingMessageId(null)
+    }
+    utterance.onerror = () => {
+      setSpeakingMessageId(null)
+    }
+
+    setSpeakingMessageId(messageId)
+    window.speechSynthesis.speak(utterance)
+  }, [speakingMessageId, settings.language])
+
   const contextValue = useMemo<ChatContextValue>(
     () => ({
       chats,
@@ -434,6 +443,9 @@ How else can I assist you in this session?`;
       uploadFile,
       isListening,
       toggleSpeechRecognition,
+      speakingMessageId,
+      speakText,
+      stopSpeaking,
     }),
     [
       chats,
@@ -461,6 +473,9 @@ How else can I assist you in this session?`;
       uploadFile,
       isListening,
       toggleSpeechRecognition,
+      speakingMessageId,
+      speakText,
+      stopSpeaking,
     ]
   )
 

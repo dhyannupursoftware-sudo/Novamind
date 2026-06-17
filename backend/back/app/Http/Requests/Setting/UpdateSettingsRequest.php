@@ -21,6 +21,7 @@ class UpdateSettingsRequest extends FormRequest
             'theme' => ['sometimes', 'required', Rule::in(['dark', 'light', 'system'])],
             'language' => ['sometimes', 'required', 'string', 'max:12'],
             'model' => ['sometimes', 'required', 'string', 'max:80'],
+            'notifications' => ['sometimes', 'boolean'],
         ];
     }
 }

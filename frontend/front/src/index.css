@@ -66,3 +66,19 @@ button:disabled {
   border-color: rgba(103, 232, 249, 0.72);
   outline: 3px solid rgba(103, 232, 249, 0.12);
 }
+
+/* Custom premium scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(11, 16, 28, 0.4);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(103, 232, 249, 0.2);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(103, 232, 249, 0.4);
+}

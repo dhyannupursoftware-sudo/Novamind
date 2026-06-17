@@ -5,6 +5,7 @@ import {
   Bookmark,
   Calendar,
   Check,
+  ChevronDown,
   Edit2,
   FileText,
   Image as ImageIcon,
@@ -23,6 +24,8 @@ import {
   Sparkles,
   Trash2,
   User,
+  Volume2,
+  VolumeX,
   X,
 } from 'lucide-react'
 import { useAuth } from '../context/useAuth'
@@ -101,6 +104,8 @@ export function DashboardPage() {
     uploadFile,
     isListening,
     toggleSpeechRecognition,
+    speakingMessageId,
+    speakText,
   } = useChat()
 
   const { showToast } = useToast()
@@ -118,6 +123,14 @@ export function DashboardPage() {
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([])
   const [isUploadingFiles, setIsUploadingFiles] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [showScrollFAB, setShowScrollFAB] = useState(false)
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.currentTarget
+    const threshold = 150
+    const isScrollUp = target.scrollHeight - target.scrollTop - target.clientHeight > threshold
+    setShowScrollFAB(isScrollUp)
+  }
 
   // In-chat message search
   const [messageSearchQuery, setMessageSearchQuery] = useState('')
@@ -539,10 +552,11 @@ export function DashboardPage() {
 
               {/* FOOTER USER CARD */}
               <div className="mt-4 border-t border-white/10 pt-4 flex flex-col gap-3">
-                <div 
-                  onClick={() => setIsProfileOpen(true)}
-                  className="flex items-center gap-2.5 rounded-xl border border-white/5 bg-white/5 p-2 hover:bg-white/10 cursor-pointer transition"
-                >
+                <div className="relative rounded-xl p-[1px] bg-gradient-to-r from-cyan-400 via-indigo-500 to-purple-500 hover:scale-[1.02] transition duration-300">
+                  <div 
+                    onClick={() => setIsProfileOpen(true)}
+                    className="flex items-center gap-2.5 rounded-xl bg-slate-900 p-2 hover:bg-slate-900/80 cursor-pointer transition"
+                  >
                   <div className="size-9 overflow-hidden rounded-full bg-slate-800 border border-white/10">
                     {user?.avatar ? (
                       <img src={user.avatar} alt="User Avatar" className="size-full object-cover" />
@@ -557,8 +571,9 @@ export function DashboardPage() {
                     <p className="truncate text-[10px] text-slate-500">@{user?.username}</p>
                   </div>
                 </div>
+              </div>
 
-                <div className="flex gap-2">
+              <div className="flex gap-2">
                   <button
                     onClick={() => setIsSettingsOpen(true)}
                     className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-white/5 bg-white/5 py-2 text-xs font-semibold text-slate-300 hover:bg-white/10 hover:text-white transition"
@@ -662,7 +677,7 @@ export function DashboardPage() {
           </header>
 
           {/* MESSAGE AREA */}
-          <div className="flex-1 overflow-y-auto px-4 py-5 scrollbar-thin flex flex-col gap-6">
+          <div onScroll={handleScroll} className="flex-1 overflow-y-auto px-4 py-5 scrollbar-thin flex flex-col gap-6">
             {isLoadingMessages ? (
               <div className="space-y-6 py-6">
                 {[1, 2].map((i) => (
@@ -754,7 +769,21 @@ export function DashboardPage() {
                           <span className="uppercase tracking-wider">
                             {isUser ? user?.name : `NovaMind (${settings.model})`}
                           </span>
-                          <span>{formatTime(message.created_at)}</span>
+                          <div className="flex items-center gap-2">
+                            {!isUser && (
+                              <button
+                                type="button"
+                                onClick={() => speakText(message.id, message.content)}
+                                className={`rounded p-0.5 transition hover:bg-white/10 ${
+                                  speakingMessageId === message.id ? 'text-cyan-400' : 'text-slate-500 hover:text-slate-300'
+                                }`}
+                                title="Listen to response"
+                              >
+                                {speakingMessageId === message.id ? <VolumeX size={12} /> : <Volume2 size={12} />}
+                              </button>
+                            )}
+                            <span>{formatTime(message.created_at)}</span>
+                          </div>
                         </div>
 
                         {/* Text Content */}
@@ -814,6 +843,23 @@ export function DashboardPage() {
 
             {/* Scroll Anchor */}
             <div ref={messageEndRef} />
+
+            {/* Scroll-to-bottom FAB */}
+            <AnimatePresence>
+              {showScrollFAB && (
+                <motion.button
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  onClick={scrollToBottom}
+                  type="button"
+                  className="absolute bottom-28 right-6 z-30 flex size-9 items-center justify-center rounded-full border border-cyan-400 bg-slate-900 text-cyan-400 shadow-xl hover:bg-slate-800 transition duration-300 pointer-events-auto cursor-pointer"
+                  title="Scroll to bottom"
+                >
+                  <ChevronDown size={18} />
+                </motion.button>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* INPUT FORM BLOCK */}
@@ -845,10 +891,11 @@ export function DashboardPage() {
               </div>
             )}
 
-            <form 
-              onSubmit={handleSend}
-              className="flex flex-col gap-2.5 rounded-xl border border-white/10 bg-white/5 p-2"
-            >
+            <div className="relative rounded-xl p-[1px] bg-gradient-to-br from-cyan-400/30 via-indigo-500/20 to-purple-500/30 focus-within:from-cyan-400 focus-within:via-indigo-500 focus-within:to-purple-500 transition-all duration-300">
+              <form 
+                onSubmit={handleSend}
+                className="flex flex-col gap-2.5 rounded-xl bg-slate-900/90 p-2"
+              >
               <textarea
                 ref={textareaRef}
                 rows={1}
@@ -931,7 +978,8 @@ export function DashboardPage() {
                   </Button>
                 </div>
               </div>
-            </form>
+              </form>
+            </div>
           </footer>
         </section>
 
