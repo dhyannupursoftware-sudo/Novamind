@@ -74,23 +74,7 @@ npm install axios react-router-dom lucide-react tailwindcss @tailwindcss/vite
 
 ## Environment Configuration
 
-Backend `backend/back/.env`:
 
-```env
-APP_NAME="NovaMind AI"
-APP_URL=http://localhost:8000
-FRONTEND_URL=http://localhost:5173
-
-DB_CONNECTION=mysql
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_DATABASE=novamind_ai
-DB_USERNAME=root
-DB_PASSWORD=
-
-SANCTUM_STATEFUL_DOMAINS=localhost:5173,127.0.0.1:5173
-MAIL_MAILER=log
-```
 
 Frontend `frontend/front/.env`:
 
