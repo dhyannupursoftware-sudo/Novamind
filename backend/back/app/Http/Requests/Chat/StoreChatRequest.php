@@ -17,7 +17,7 @@ class StoreChatRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'title' => ['nullable', 'string', 'max:120'],
+            'title' => ['nullable', 'string', 'max:5000'],
             'pinned' => ['sometimes', 'boolean'],
         ];
     }

@@ -1141,7 +1141,7 @@ export function DashboardPage() {
                     </motion.div>
                     
                     <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
-                      Hello, {user?.username || user?.name || 'User'}
+                      Hello, {user?.name || user?.username || 'User'}
                     </h1>
                     <p className="text-sm text-slate-400 font-medium max-w-sm mx-auto leading-relaxed">
                       How can I help you today? Ask me anything about coding, database design, or general reasoning.
