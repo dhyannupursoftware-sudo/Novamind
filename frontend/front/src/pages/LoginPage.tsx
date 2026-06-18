@@ -43,7 +43,7 @@ export function LoginPage() {
       footer={
         <>
           New to NovaMind AI?{' '}
-          <Link className="font-semibold text-cyan-200 hover:text-cyan-100" to="/register">
+          <Link className="font-semibold text-indigo-400 hover:text-indigo-300" to="/register">
             Create an account
           </Link>
         </>
@@ -83,7 +83,7 @@ export function LoginPage() {
           <label className="inline-flex items-center gap-2 text-sm text-slate-300">
             <input
               checked={form.remember}
-              className="size-4 rounded border-white/20 bg-white/10 accent-cyan-300"
+              className="size-4 rounded border-white/20 bg-white/10 accent-indigo-500"
               onChange={(event) =>
                 setForm((current) => ({ ...current, remember: event.target.checked }))
               }
@@ -91,7 +91,7 @@ export function LoginPage() {
             />
             Remember me
           </label>
-          <Link className="text-sm font-medium text-cyan-200 hover:text-cyan-100" to="/forgot-password">
+          <Link className="text-sm font-medium text-indigo-400 hover:text-indigo-300" to="/forgot-password">
             Forgot password?
           </Link>
         </div>

@@ -1,5 +1,5 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
-import { BrandMark } from '../components/BrandMark'
+import { Loader2 } from 'lucide-react'
 import { useAuth } from '../context/useAuth'
 import { ChatProvider } from '../context/ChatContext'
 
@@ -9,10 +9,10 @@ export function ProtectedRoute() {
 
   if (isBooting) {
     return (
-      <main className="grid min-h-screen place-items-center bg-slate-950 text-white">
-        <div className="glass flex items-center gap-4 rounded-lg px-5 py-4">
-          <BrandMark compact />
-          <span className="text-sm text-slate-300">Loading NovaMind AI</span>
+      <main className="grid min-h-screen place-items-center bg-[#171717] text-white">
+        <div className="flex items-center gap-4 bg-[#212121] rounded-2xl border border-white/5 px-6 py-4 shadow-xl select-none">
+          <Loader2 className="animate-spin text-indigo-400" size={18} />
+          <span className="text-sm text-slate-300 font-medium">Loading NovaMind AI</span>
         </div>
       </main>
     )

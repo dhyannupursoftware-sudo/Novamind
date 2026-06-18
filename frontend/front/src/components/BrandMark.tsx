@@ -1,5 +1,3 @@
-import { BrainCircuit } from 'lucide-react'
-
 interface BrandMarkProps {
   compact?: boolean
 }
@@ -7,15 +5,15 @@ interface BrandMarkProps {
 export function BrandMark({ compact = false }: BrandMarkProps) {
   return (
     <div className="flex items-center gap-3">
-      <div className="grid size-10 place-items-center rounded-lg border border-cyan-300/25 bg-cyan-300/10 text-cyan-200 shadow-[0_0_28px_rgba(34,211,238,0.18)]">
-        <BrainCircuit size={22} aria-hidden="true" />
+      <div className="size-10 overflow-hidden rounded-lg bg-white/5 border border-white/10 flex items-center justify-center p-2.5">
+        <img src="/favicon.svg" alt="NovaMind Logo" className="size-full object-contain" />
       </div>
       {!compact && (
         <div>
-          <p className="text-sm font-semibold tracking-[0.18em] text-cyan-100/80 uppercase">
+          <p className="text-sm font-semibold tracking-[0.18em] text-white uppercase">
             NovaMind
           </p>
-          <p className="text-xs text-slate-400">AI workspace</p>
+          <p className="text-xs text-slate-500">AI workspace</p>
         </div>
       )}
     </div>

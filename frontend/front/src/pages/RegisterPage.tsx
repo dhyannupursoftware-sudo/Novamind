@@ -42,7 +42,7 @@ export function RegisterPage() {
       footer={
         <>
           Already have an account?{' '}
-          <Link className="font-semibold text-cyan-200 hover:text-cyan-100" to="/login">
+          <Link className="font-semibold text-indigo-400 hover:text-indigo-300" to="/login">
             Sign in
           </Link>
         </>
@@ -120,7 +120,7 @@ export function RegisterPage() {
         <label className="inline-flex items-center gap-2 text-sm text-slate-300">
           <input
             checked={form.remember}
-            className="size-4 rounded border-white/20 bg-white/10 accent-cyan-300"
+            className="size-4 rounded border-white/20 bg-white/10 accent-indigo-500"
             onChange={(event) =>
               setForm((current) => ({ ...current, remember: event.target.checked }))
             }

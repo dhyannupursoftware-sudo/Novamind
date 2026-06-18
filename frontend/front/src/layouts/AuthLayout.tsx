@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { BrandMark } from '../components/BrandMark'
 import heroImage from '../assets/hero.png'
+import { ChevronLeft } from 'lucide-react'
 
 interface AuthLayoutProps {
   children: ReactNode
@@ -11,51 +12,82 @@ interface AuthLayoutProps {
 
 export function AuthLayout({ children, footer, title }: AuthLayoutProps) {
   return (
-    <main className="grid min-h-screen grid-cols-1 bg-slate-950 text-white lg:grid-cols-[1.05fr_0.95fr]">
-      <section className="hidden min-h-screen flex-col justify-between border-r border-white/10 p-8 lg:flex">
-        <BrandMark />
-        <div className="max-w-xl">
+    <main className="grid min-h-screen grid-cols-1 bg-[#171717] text-white lg:grid-cols-[1.05fr_0.95fr] relative overflow-hidden">
+      
+      {/* LEFT SIDE PANEL (Desktop illustration cockpit) */}
+      <section className="hidden min-h-screen flex-col justify-between border-r border-white/5 p-10 lg:flex relative z-10 bg-[#0d0d0d]">
+        
+        {/* Top Back Link */}
+        <div className="flex items-center justify-between">
+          <BrandMark />
+          <Link
+            to="/"
+            className="inline-flex items-center gap-1 text-xs font-semibold text-slate-400 hover:text-white transition duration-200 border border-white/5 bg-white/5 rounded-xl px-3.5 py-2"
+          >
+            <ChevronLeft size={13} />
+            Back to Home
+          </Link>
+        </div>
+
+        {/* Center brand presentation */}
+        <div className="max-w-xl my-auto py-12 space-y-6">
           <img
             src={heroImage}
-            alt=""
-            className="mb-10 h-52 w-52 object-contain opacity-90 drop-shadow-[0_24px_55px_rgba(45,212,191,0.2)]"
+            alt="NovaMind AI Cockpit"
+            className="mb-8 h-48 w-48 object-contain opacity-95 drop-shadow-[0_0_15px_rgba(255,255,255,0.03)] animate-none"
           />
-          <h1 className="max-w-lg text-5xl font-semibold leading-tight text-white">
-            NovaMind AI
+          <h1 className="text-4xl font-extrabold tracking-tight text-white leading-tight">
+            Explore the Next Gen <span className="bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400 bg-clip-text text-transparent">AI Cockpit</span>
           </h1>
-          <p className="mt-5 max-w-md text-base leading-7 text-slate-300">
-            Secure conversations, fast workspaces, and model-ready infrastructure in one dark SaaS cockpit.
+          <p className="text-sm leading-relaxed text-slate-450 text-slate-400 max-w-sm font-medium">
+            Secure conversations, fast workspaces, and model-ready infrastructure in one premium dark dashboard.
           </p>
         </div>
-        <div className="grid grid-cols-3 gap-3 text-sm text-slate-300">
-          <div className="rounded-lg border border-white/10 bg-white/5 p-3">
-            <p className="font-semibold text-cyan-100">Sanctum</p>
-            <p className="mt-1 text-xs text-slate-500">Token auth</p>
+
+        {/* Bottom system details badges */}
+        <div className="grid grid-cols-3 gap-3 text-xs text-slate-400">
+          <div className="rounded-xl border border-white/5 bg-white/[0.01] p-3 shadow-lg">
+            <p className="font-bold text-indigo-400">Laravel API</p>
+            <p className="mt-0.5 text-[10px] text-slate-500">API Backend core</p>
           </div>
-          <div className="rounded-lg border border-white/10 bg-white/5 p-3">
-            <p className="font-semibold text-emerald-100">MySQL</p>
-            <p className="mt-1 text-xs text-slate-500">Relational core</p>
+          <div className="rounded-xl border border-white/5 bg-white/[0.01] p-3 shadow-lg">
+            <p className="font-bold text-indigo-400">MySQL Sync</p>
+            <p className="mt-0.5 text-[10px] text-slate-500">Relational Sync</p>
           </div>
-          <div className="rounded-lg border border-white/10 bg-white/5 p-3">
-            <p className="font-semibold text-rose-100">Laravel</p>
-            <p className="mt-1 text-xs text-slate-500">API backend</p>
+          <div className="rounded-xl border border-white/5 bg-white/[0.01] p-3 shadow-lg">
+            <p className="font-bold text-indigo-400">Ollama local</p>
+            <p className="mt-0.5 text-[10px] text-slate-500">Private AI runs</p>
           </div>
         </div>
       </section>
 
-      <section className="flex min-h-screen items-center justify-center px-4 py-8 sm:px-6">
+      {/* RIGHT SIDE FORM VIEW */}
+      <section className="flex min-h-screen items-center justify-center px-4 py-8 sm:px-6 relative z-10">
         <div className="w-full max-w-md">
-          <div className="mb-8 flex items-center justify-between lg:hidden">
+          
+          {/* Mobile Back & Brand Row */}
+          <div className="mb-8 flex items-center justify-between lg:hidden select-none">
             <BrandMark />
-            <Link className="text-sm text-cyan-200 hover:text-cyan-100" to="/login">
-              Sign in
+            <Link
+              to="/"
+              className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-400 hover:text-white transition duration-200 border border-white/5 bg-white/5 rounded-lg px-2.5 py-1.5"
+            >
+              <ChevronLeft size={10} />
+              Home
             </Link>
           </div>
-          <div className="glass rounded-lg p-6 sm:p-8">
-            <h2 className="text-2xl font-semibold text-white">{title}</h2>
-            <div className="mt-7">{children}</div>
+
+          {/* Card Wrapper */}
+          <div className="rounded-2xl border border-white/5 bg-[#0d0d0d] p-6 sm:p-8 shadow-2xl relative overflow-hidden">
+
+            <h2 className="text-xl font-extrabold text-white tracking-tight">{title}</h2>
+            <div className="mt-6">{children}</div>
           </div>
-          <div className="mt-6 text-center text-sm text-slate-400">{footer}</div>
+
+          {/* Form footer link */}
+          <div className="mt-5 text-center text-xs text-slate-400 font-semibold tracking-wide select-none">
+            {footer}
+          </div>
         </div>
       </section>
     </main>

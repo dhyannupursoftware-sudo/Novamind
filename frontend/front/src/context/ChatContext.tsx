@@ -72,6 +72,7 @@ interface ChatContextValue {
   isLoadingChats: boolean
   isLoadingMessages: boolean
   isSending: boolean
+  isThinking: boolean
   searchQuery: string
   setSearchQuery: (query: string) => void
   sortBy: 'date' | 'name'
@@ -92,6 +93,7 @@ interface ChatContextValue {
   togglePinChat: (chat: ExtendedChat) => Promise<void>
   toggleSaveChat: (chat: ExtendedChat) => Promise<void>
   sendMessage: (content: string, attachments?: Attachment[]) => Promise<void>
+  setMessages: React.Dispatch<React.SetStateAction<ExtendedMessage[]>>
   
   // Settings Actions
   settings: UserSettings
@@ -136,6 +138,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const [isLoadingChats, setIsLoadingChats] = useState(false)
   const [isLoadingMessages, setIsLoadingMessages] = useState(false)
   const [isSending, setIsSending] = useState(false)
+  const [isThinking, setIsThinking] = useState(false)
   
   // Filtering & Sorting
   const [searchQuery, setSearchQuery] = useState('')
@@ -328,47 +331,118 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     if ((!content.trim() && attachments.length === 0) || isSending) return
 
     setIsSending(true)
+    setIsThinking(true)
+
+    // Prepare a temporary user message
+    const tempUserMsgId = -Date.now()
+    const tempUserMsg: ExtendedMessage = {
+      id: tempUserMsgId,
+      chat_id: selectedChat?.id || 0,
+      role: 'user',
+      content: content.trim(),
+      attachments: attachments.length > 0 ? attachments : null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+
+    // Instantly append user message
+    setMessages((prev) => [...prev, tempUserMsg])
+
     try {
       let activeChat = selectedChat
       if (!activeChat) {
+        // If creating new chat, create it first
         activeChat = await createChat(content.trim() ? content.trim() : 'Attachment Upload')
       }
 
+      // Update tempUserMsg's chat_id once chat is created/identified
+      setMessages((prev) =>
+        prev.map((m) => (m.id === tempUserMsgId ? { ...m, chat_id: activeChat.id } : m))
+      )
+
+      // Post the message
       const { data } = await api.post<ApiResource<{ user: ExtendedMessage; assistant: ExtendedMessage }>>(`/chats/${activeChat.id}/messages`, {
         role: 'user',
         content: content.trim(),
         attachments: attachments.length > 0 ? attachments : null,
       })
 
-      setMessages((prev) => [
-        ...prev,
-        data.data.user,
-        ...(data.data.assistant ? [data.data.assistant] : []),
-      ])
+      // Replace the temp message with the actual stored user message
+      setMessages((prev) => {
+        const filtered = prev.filter((m) => m.id !== tempUserMsgId)
+        return [...filtered, data.data.user]
+      })
 
-      // Trigger loadChats to refresh titles/counts/sorting on sidebar
-      void loadChats()
+      if (data.data.assistant) {
+        const assistantMsg = data.data.assistant
 
-      // Final synchronization
-      const chatDetails = await api.get<ApiResource<ExtendedChat>>(`/chats/${activeChat.id}`)
-      setSelectedChat(chatDetails.data.data)
-      setMessages(chatDetails.data.data.messages ?? [])
-      void loadChats()
+        // Add empty assistant placeholder first
+        const placeholderAssistant: ExtendedMessage = {
+          ...assistantMsg,
+          content: '',
+        }
+        setMessages((prev) => [...prev, placeholderAssistant])
+
+        // Hide thinking indicator before starting the stream
+        setIsThinking(false)
+
+        // Stream the assistant response word-by-word
+        const words = assistantMsg.content.split(/(\s+)/)
+        let currentText = ''
+        let wordIndex = 0
+
+        await new Promise<void>((resolve) => {
+          const interval = setInterval(() => {
+            if (wordIndex < words.length) {
+              currentText += words[wordIndex]
+              setMessages((prev) =>
+                prev.map((m) => (m.id === assistantMsg.id ? { ...m, content: currentText } : m))
+              )
+              wordIndex++
+            } else {
+              clearInterval(interval)
+              resolve()
+            }
+          }, 25)
+        })
+      }
+
+      // Quietly update active chat in sidebar chats state locally
+      setChats((prev) => {
+        const updated = prev.map((c) => {
+          if (c.id === activeChat.id) {
+            return {
+              ...c,
+              updated_at: new Date().toISOString(),
+              title: c.title === 'New chat' ? (content.trim().substring(0, 50) || 'New chat') : c.title,
+            }
+          }
+          return c
+        })
+        return updated.sort((a, b) => {
+          if (a.pinned !== b.pinned) return Number(b.pinned) - Number(a.pinned)
+          return new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime()
+        })
+      })
+
+      // Sync selected chat state quietly
+      setSelectedChat((prev) => {
+        if (!prev || prev.id !== activeChat.id) return activeChat
+        return {
+          ...prev,
+          updated_at: new Date().toISOString(),
+          title: prev.title === 'New chat' ? (content.trim().substring(0, 50) || 'New chat') : prev.title,
+        }
+      })
     } catch (err) {
       showToast(errorMessage(err), 'error')
-      if (selectedChat) {
-        try {
-          const chatDetails = await api.get<ApiResource<ExtendedChat>>(`/chats/${selectedChat.id}`)
-          setSelectedChat(chatDetails.data.data)
-          setMessages(chatDetails.data.data.messages ?? [])
-        } catch {
-          // Keep the original send error visible.
-        }
-      }
+      // Clean up temp user message if send failed
+      setMessages((prev) => prev.filter((m) => m.id !== tempUserMsgId))
+      setIsThinking(false)
     } finally {
       setIsSending(false)
     }
-  }, [selectedChat, createChat, loadChats, isSending, showToast])
+  }, [selectedChat, createChat, isSending, showToast])
 
   // Save/Update settings
   const updateSettings = useCallback(async (newSettings: Partial<UserSettings>) => {
@@ -492,6 +566,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       isLoadingChats,
       isLoadingMessages,
       isSending,
+      isThinking,
       searchQuery,
       setSearchQuery,
       sortBy,
@@ -510,6 +585,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       togglePinChat,
       toggleSaveChat,
       sendMessage,
+      setMessages,
       settings,
       updateSettings,
       isSavingSettings,
@@ -527,6 +603,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       isLoadingChats,
       isLoadingMessages,
       isSending,
+      isThinking,
       searchQuery,
       sortBy,
       filterSavedOnly,
@@ -540,6 +617,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       togglePinChat,
       toggleSaveChat,
       sendMessage,
+      setMessages,
       settings,
       updateSettings,
       isSavingSettings,
