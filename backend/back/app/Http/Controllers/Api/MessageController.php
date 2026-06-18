@@ -8,7 +8,9 @@ use App\Http\Resources\MessageResource;
 use App\Models\Chat;
 use App\Services\OllamaService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Throwable;
 
 class MessageController extends Controller
 {
@@ -16,13 +18,17 @@ class MessageController extends Controller
     {
         abort_unless($chat->user_id === $request->user()->id, 404);
 
-        // 1. Create User message
-        $userMessage = $chat->messages()->create($request->validated());
+        $data = $request->validated();
 
-        // Update chat title if needed
+        $userMessage = $chat->messages()->create([
+            'role' => $data['role'],
+            'content' => $data['content'] ?? '',
+            'attachments' => $data['attachments'] ?? null,
+        ]);
+
         if ($chat->title === 'New chat' && $userMessage->role === 'user') {
-            $title = $userMessage->content 
-                ? Str::limit($userMessage->content, 52, '') 
+            $title = $userMessage->content
+                ? Str::limit($userMessage->content, 52, '')
                 : (count($userMessage->attachments ?? []) > 0 ? $userMessage->attachments[0]['name'] : 'Uploaded file');
             $chat->update([
                 'title' => Str::limit($title, 52, ''),
@@ -31,23 +37,45 @@ class MessageController extends Controller
             $chat->touch();
         }
 
-        // 2. Fetch full message history to maintain context
+        if ($userMessage->role !== 'user') {
+            return response()->json([
+                'data' => [
+                    'user' => new MessageResource($userMessage),
+                    'assistant' => null,
+                ],
+            ], 201);
+        }
+
         $history = $chat->messages()
             ->oldest('created_at')
             ->get(['role', 'content'])
             ->toArray();
 
-        // 3. Fetch user settings for chosen model
         $userSettings = $request->user()->settings()->firstOrCreate([], [
             'theme' => 'dark',
             'language' => 'en',
             'model' => 'nova-pro',
         ]);
 
-        // 4. Generate AI reply
-        $aiContent = $ollama->generateResponse($history, $userSettings->model);
+        try {
+            $aiContent = $ollama->generateResponse($history, $userSettings->model);
+        } catch (Throwable $throwable) {
+            Log::error('Ollama generation failed.', [
+                'chat_id' => $chat->id,
+                'user_id' => $request->user()->id,
+                'error' => $throwable->getMessage(),
+            ]);
 
-        // 5. Store AI assistant message
+            return response()->json([
+                'message' => 'AI service unavailable. Ensure Ollama is running and qwen3:8b is installed.',
+                'error' => $throwable->getMessage(),
+                'data' => [
+                    'user' => new MessageResource($userMessage),
+                    'assistant' => null,
+                ],
+            ], 503);
+        }
+
         $assistantMessage = $chat->messages()->create([
             'role' => 'assistant',
             'content' => $aiContent,
@@ -58,7 +86,7 @@ class MessageController extends Controller
             'data' => [
                 'user' => new MessageResource($userMessage),
                 'assistant' => new MessageResource($assistantMessage),
-            ]
+            ],
         ], 201);
     }
 }

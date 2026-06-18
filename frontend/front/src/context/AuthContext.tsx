@@ -8,7 +8,12 @@ import {
 import { api, setAuthToken } from '../lib/api'
 import type { ApiResource, AuthResponse, User } from '../types/api'
 import { AuthContext, type AuthContextValue } from './auth-context'
-import type { LoginPayload, RegisterPayload, ResetPasswordPayload } from './auth-context'
+import type {
+  LoginPayload,
+  RegisterPayload,
+  ResetPasswordPayload,
+  UpdateProfilePayload,
+} from './auth-context'
 
 const TOKEN_KEY = 'novamind.auth.token'
 
@@ -106,7 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await api.post('/auth/reset-password', payload)
   }, [])
 
-  const updateProfile = useCallback(async (payload: any) => {
+  const updateProfile = useCallback(async (payload: UpdateProfilePayload) => {
     const { data } = await api.patch<ApiResource<User>>('/auth/profile', payload)
     setUser(data.data)
   }, [])

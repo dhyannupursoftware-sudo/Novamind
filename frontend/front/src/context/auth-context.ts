@@ -23,6 +23,15 @@ export interface ResetPasswordPayload {
   password_confirmation: string
 }
 
+export interface UpdateProfilePayload {
+  name: string
+  username: string
+  email: string
+  avatar: string | null
+  password?: string
+  password_confirmation?: string
+}
+
 export interface AuthContextValue {
   forgotPassword: (email: string) => Promise<void>
   isAuthenticated: boolean
@@ -31,7 +40,7 @@ export interface AuthContextValue {
   logout: () => Promise<void>
   register: (payload: RegisterPayload) => Promise<void>
   resetPassword: (payload: ResetPasswordPayload) => Promise<void>
-  updateProfile: (payload: any) => Promise<void>
+  updateProfile: (payload: UpdateProfilePayload) => Promise<void>
   user: User | null
 }
 

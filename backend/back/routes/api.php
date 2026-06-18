@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\AttachmentController;
+use App\Http\Controllers\Api\AiHealthController;
 use App\Http\Controllers\Api\ChatController;
 use App\Http\Controllers\Api\MessageController;
 use App\Http\Controllers\Api\SettingController;
@@ -21,6 +22,7 @@ Route::prefix('auth')->group(function (): void {
 });
 
 Route::middleware('auth:sanctum')->group(function (): void {
+    Route::get('ai/health', AiHealthController::class);
     Route::apiResource('chats', ChatController::class);
     Route::post('chats/{chat}/messages', [MessageController::class, 'store']);
     Route::post('upload', [AttachmentController::class, 'upload']);

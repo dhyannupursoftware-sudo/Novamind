@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -45,6 +46,20 @@ class ApiFoundationTest extends TestCase
 
     public function test_authenticated_user_can_create_chat_and_message(): void
     {
+        Http::fake([
+            'http://127.0.0.1:11434/api/tags' => Http::response([
+                'models' => [
+                    ['name' => 'qwen3:8b'],
+                ],
+            ]),
+            'http://127.0.0.1:11434/api/chat' => Http::response([
+                'message' => [
+                    'role' => 'assistant',
+                    'content' => '<think>Adding.</think>6',
+                ],
+            ]),
+        ]);
+
         $user = User::factory()->create();
         Sanctum::actingAs($user);
 
@@ -60,13 +75,19 @@ class ApiFoundationTest extends TestCase
 
         $messageResponse = $this->postJson("/api/chats/{$chatResponse->json('data.id')}/messages", [
             'role' => 'user',
-            'content' => 'Draft a launch plan.',
+            'content' => '3+3',
         ]);
 
         $messageResponse
             ->assertCreated()
             ->assertJsonPath('data.user.role', 'user')
-            ->assertJsonPath('data.user.content', 'Draft a launch plan.')
-            ->assertJsonPath('data.assistant.role', 'assistant');
+            ->assertJsonPath('data.user.content', '3+3')
+            ->assertJsonPath('data.assistant.role', 'assistant')
+            ->assertJsonPath('data.assistant.content', '6');
+
+        $this->assertDatabaseHas('messages', [
+            'role' => 'assistant',
+            'content' => '6',
+        ]);
     }
 }

@@ -3,120 +3,225 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
-use Exception;
+use RuntimeException;
+use Throwable;
 
 class OllamaService
 {
-    protected string $host;
-    protected int $timeout;
+    private string $host;
+
+    private string $defaultModel;
+
+    private int $timeout;
+
+    private int $connectTimeout;
+
+    private int $numPredict;
 
     public function __construct()
     {
-        $this->host = rtrim(config('services.ollama.host', env('OLLAMA_HOST', 'http://127.0.0.1:11434')), '/');
-        $this->timeout = (int) config('services.ollama.timeout', 45); // 45 seconds timeout
+        $this->host = rtrim((string) config('services.ollama.host', 'http://127.0.0.1:11434'), '/');
+        $this->defaultModel = (string) config('services.ollama.model', 'qwen3:8b');
+        $this->timeout = (int) config('services.ollama.timeout', 120);
+        $this->connectTimeout = (int) config('services.ollama.connect_timeout', 5);
+        $this->numPredict = (int) config('services.ollama.num_predict', 1024);
     }
 
     /**
-     * Get system prompt based on user settings model or context
+     * @return array{reachable: bool, host: string, configured_model: string, model_installed: bool, models: list<string>, error: string|null}
      */
-    protected function getSystemPrompt(string $model): string
+    public function health(): array
     {
-        $basePrompt = "You are NovaMind AI, an advanced developer and system assistant. " .
-                      "You are running locally on Qwen3/Qwen2.5 architectures. " .
-                      "Respond using clean GitHub Flavored Markdown. When providing code blocks, always specify the language for proper syntax highlighting. ";
+        try {
+            $models = $this->getAvailableModels();
 
-        if ($model === 'nova-coder') {
-            return $basePrompt . "You are in Programming Specialist mode. Provide production-ready, highly optimized code across React, Laravel, PHP, JavaScript, TypeScript, MySQL, HTML, and CSS. Highlight best practices, security, and edge-case handling. Keep explanations concise.";
+            return [
+                'reachable' => true,
+                'host' => $this->host,
+                'configured_model' => $this->defaultModel,
+                'model_installed' => in_array($this->defaultModel, $models, true),
+                'models' => $models,
+                'error' => null,
+            ];
+        } catch (Throwable $throwable) {
+            return [
+                'reachable' => false,
+                'host' => $this->host,
+                'configured_model' => $this->defaultModel,
+                'model_installed' => false,
+                'models' => [],
+                'error' => $throwable->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function getAvailableModels(): array
+    {
+        $response = Http::connectTimeout($this->connectTimeout)
+            ->timeout(10)
+            ->acceptJson()
+            ->get("{$this->host}/api/tags");
+
+        if (! $response->successful()) {
+            throw new RuntimeException("Ollama tags endpoint returned HTTP {$response->status()}.");
         }
 
-        return $basePrompt . "Be helpful, friendly, and provide clear explanations. If code is requested, provide it cleanly.";
+        $models = $response->json('models') ?? [];
+
+        return array_values(array_filter(array_map(
+            fn (array $model): string => (string) ($model['name'] ?? ''),
+            $models,
+        )));
     }
 
     /**
-     * Map frontend user model settings to Ollama pulled model tag
-     */
-    protected function mapModelTag(string $modelSetting): string
-    {
-        // Default to qwen3/qwen (e.g. qwen:8b or qwen2.5:7b)
-        // If the user specifies Qwen3:8b, the pulled tag on ollama is typically 'qwen:8b' or 'qwen2.5:7b' or 'qwen'
-        // We will default to 'qwen:8b' or user model if they configured it directly.
-        if ($modelSetting === 'nova-coder') {
-            return 'qwen2.5-coder:7b';
-        }
-        return 'qwen:8b'; // default general Qwen 8B
-    }
-
-    /**
-     * Send chat request to local Ollama API
-     *
-     * @param array $historyMessages Array of models containing role and content
-     * @param string $modelSetting User settings model tag
-     * @return string AI Response content
+     * @param array<int, array{role: string, content: string|null}> $historyMessages
      */
     public function generateResponse(array $historyMessages, string $modelSetting = 'nova-pro'): string
     {
-        $ollamaModel = $this->mapModelTag($modelSetting);
-        $systemPrompt = $this->getSystemPrompt($modelSetting);
+        $this->extendPhpTimeout();
 
-        // Compile messages payload
-        $payloadMessages = [];
-        $payloadMessages[] = [
-            'role' => 'system',
-            'content' => $systemPrompt,
-        ];
+        $availableModels = $this->getAvailableModels();
+        $ollamaModel = $this->mapModelTag($modelSetting, $availableModels);
 
-        foreach ($historyMessages as $msg) {
-            $payloadMessages[] = [
-                'role' => $msg['role'],
-                'content' => $msg['content'] ?? '',
-            ];
+        if (! in_array($ollamaModel, $availableModels, true)) {
+            throw new RuntimeException("Ollama model '{$ollamaModel}' is not installed. Run: ollama pull {$ollamaModel}");
         }
 
-        try {
-            $response = Http::timeout($this->timeout)
-                ->post("{$this->host}/api/chat", [
-                    'model' => $ollamaModel,
-                    'messages' => $payloadMessages,
-                    'stream' => false,
-                ]);
+        $response = Http::connectTimeout($this->connectTimeout)
+            ->timeout($this->timeout)
+            ->acceptJson()
+            ->post("{$this->host}/api/chat", [
+                'model' => $ollamaModel,
+                'messages' => $this->buildPayloadMessages($historyMessages, $modelSetting),
+                'stream' => false,
+                'think' => false,
+                'options' => [
+                    'temperature' => 0,
+                    'num_ctx' => 4096,
+                    'num_predict' => $this->numPredictFor($historyMessages),
+                ],
+            ]);
 
-            if ($response->successful()) {
-                return $response->json('message.content') ?? 'No response content generated.';
-            }
-
-            Log::warning("Ollama API returned non-success response: " . $response->body());
-            return $this->getOfflineFallback($ollamaModel, "HTTP Code: " . $response->status());
-
-        } catch (Exception $e) {
-            Log::error("Failed to connect to local Ollama API: " . $e->getMessage());
-            return $this->getOfflineFallback($ollamaModel, $e->getMessage());
+        if (! $response->successful()) {
+            throw new RuntimeException("Ollama chat endpoint returned HTTP {$response->status()}: {$response->body()}");
         }
+
+        $content = (string) ($response->json('message.content') ?? '');
+        $content = $this->stripThinking($content);
+
+        if ($content === '') {
+            throw new RuntimeException('Ollama returned an empty assistant message.');
+        }
+
+        return $content;
     }
 
     /**
-     * Return helpful simulator guide reply when local Ollama is offline or model is missing
+     * @param list<string> $availableModels
      */
-    protected function getOfflineFallback(string $modelTag, string $errorDetails): string
+    private function mapModelTag(string $modelSetting, array $availableModels): string
     {
-        return "### ⚠️ NovaMind AI Sandbox Simulator (Local Ollama Offline)\n\n" .
-               "I tried to contact your local Ollama API at `{$this->host}`, but the service appears to be offline or the model is loading.\n\n" .
-               "**Technical Error Details**:\n" .
-               "> `{$errorDetails}`\n\n" .
-               "--- \n\n" .
-               "#### 🚀 How to Set Up & Run Local Qwen3 AI:\n\n" .
-               "1. **Install Ollama**:\n" .
-               "   - Download and run the installer from the official site: [Ollama.com](https://ollama.com)\n\n" .
-               "2. **Pull the Qwen Model**:\n" .
-               "   - Open your terminal and pull the Qwen 8B model:\n" .
-               "     ```bash\n" .
-               "     ollama pull {$modelTag}\n" .
-               "     ```\n\n" .
-               "3. **Start the Service**:\n" .
-               "   - Ensure the server is listening locally on port `11434`:\n" .
-               "     ```bash\n" .
-               "     ollama serve\n" .
-               "     ```\n\n" .
-               "Once the local Ollama server is active, NovaMind will automatically route prompts through your Qwen model!";
+        if ($modelSetting === 'nova-coder') {
+            foreach ($availableModels as $model) {
+                if (str_contains(strtolower($model), 'coder')) {
+                    return $model;
+                }
+            }
+        }
+
+        if (in_array($this->defaultModel, $availableModels, true)) {
+            return $this->defaultModel;
+        }
+
+        foreach ($availableModels as $model) {
+            $normalized = strtolower($model);
+
+            if (str_contains($normalized, 'qwen3') && str_contains($normalized, '8b')) {
+                return $model;
+            }
+        }
+
+        return $this->defaultModel;
+    }
+
+    /**
+     * @param array<int, array{role: string, content: string|null}> $historyMessages
+     * @return list<array{role: string, content: string}>
+     */
+    private function buildPayloadMessages(array $historyMessages, string $modelSetting): array
+    {
+        $messages = [[
+            'role' => 'system',
+            'content' => $this->systemPrompt($modelSetting),
+        ]];
+
+        foreach ($historyMessages as $message) {
+            $role = (string) ($message['role'] ?? 'user');
+            $content = trim((string) ($message['content'] ?? ''));
+
+            if ($content === '' || ! in_array($role, ['system', 'user', 'assistant'], true)) {
+                continue;
+            }
+
+            $messages[] = [
+                'role' => $role,
+                'content' => $content,
+            ];
+        }
+
+        return $messages;
+    }
+
+    private function systemPrompt(string $modelSetting): string
+    {
+        $basePrompt = 'You are NovaMind AI running locally through Ollama with Qwen3. '
+            .'Answer clearly and directly. If the user asks only a simple arithmetic expression, '
+            .'return only the final numeric result, with no explanation.';
+
+        if ($modelSetting === 'nova-coder') {
+            return $basePrompt.' For programming tasks, provide production-ready code and concise reasoning.';
+        }
+
+        return $basePrompt;
+    }
+
+    /**
+     * @param array<int, array{role: string, content: string|null}> $historyMessages
+     */
+    private function numPredictFor(array $historyMessages): int
+    {
+        $lastUserMessage = '';
+
+        foreach (array_reverse($historyMessages) as $message) {
+            if (($message['role'] ?? null) === 'user') {
+                $lastUserMessage = trim((string) ($message['content'] ?? ''));
+                break;
+            }
+        }
+
+        if ($lastUserMessage !== '' && preg_match('/^[\d\s+\-*\/().=%]+$/', $lastUserMessage)) {
+            return 16;
+        }
+
+        return $this->numPredict;
+    }
+
+    private function stripThinking(string $content): string
+    {
+        $content = preg_replace('/<think>.*?<\/think>/is', '', $content) ?? $content;
+
+        return trim($content);
+    }
+
+    private function extendPhpTimeout(): void
+    {
+        $target = (string) max($this->timeout + 10, 60);
+
+        @ini_set('max_execution_time', $target);
+        @set_time_limit((int) $target);
     }
 }

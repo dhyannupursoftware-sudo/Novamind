@@ -1,10 +1,12 @@
+/* eslint-disable react-refresh/only-export-components */
 import {
   createContext,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
   useContext,
   useState,
-  useEffect,
-  useCallback,
-  useMemo,
   type ReactNode,
 } from 'react'
 import { api, errorMessage } from '../lib/api'
@@ -27,6 +29,40 @@ export interface Attachment {
 
 export interface ExtendedMessage extends Message {
   attachments?: Attachment[] | null
+}
+
+interface SpeechRecognitionAlternativeLike {
+  transcript: string
+}
+
+interface SpeechRecognitionResultLike {
+  isFinal: boolean
+  0: SpeechRecognitionAlternativeLike
+}
+
+interface SpeechRecognitionEventLike {
+  resultIndex: number
+  results: ArrayLike<SpeechRecognitionResultLike>
+}
+
+interface SpeechRecognitionErrorEventLike {
+  error: string
+}
+
+interface SpeechRecognitionLike {
+  continuous: boolean
+  interimResults: boolean
+  lang: string
+  onend: (() => void) | null
+  onerror: ((event: SpeechRecognitionErrorEventLike) => void) | null
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null
+  start: () => void
+  stop: () => void
+}
+
+interface SpeechRecognitionWindow extends Window {
+  SpeechRecognition?: new () => SpeechRecognitionLike
+  webkitSpeechRecognition?: new () => SpeechRecognitionLike
 }
 
 interface ChatContextValue {
@@ -116,22 +152,40 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
   // Speech Recognition
   const [isListening, setIsListening] = useState(false)
-  const [recognition, setRecognition] = useState<any>(null)
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
 
   useEffect(() => {
-    setSettings(user?.settings ?? defaultSettings(user?.id))
+    const timer = window.setTimeout(() => {
+      setSettings(user?.settings ?? defaultSettings(user?.id))
+    }, 0)
+
+    return () => window.clearTimeout(timer)
   }, [user])
 
   // Initialize Speech Recognition
   useEffect(() => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
-    if (SpeechRecognition) {
-      const rec = new SpeechRecognition()
-      rec.continuous = true
-      rec.interimResults = true
-      rec.lang = settings.language === 'en' ? 'en-US' : settings.language === 'es' ? 'es-ES' : settings.language === 'fr' ? 'fr-FR' : 'hi-IN'
-      setRecognition(rec)
-    }
+    const timer = window.setTimeout(() => {
+      const speechWindow = window as SpeechRecognitionWindow
+      const SpeechRecognition =
+        speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition
+
+      if (SpeechRecognition) {
+        const recognition = new SpeechRecognition()
+        recognition.continuous = true
+        recognition.interimResults = true
+        recognition.lang =
+          settings.language === 'en'
+            ? 'en-US'
+            : settings.language === 'es'
+              ? 'es-ES'
+              : settings.language === 'fr'
+                ? 'fr-FR'
+                : 'hi-IN'
+        recognitionRef.current = recognition
+      }
+    }, 0)
+
+    return () => window.clearTimeout(timer)
   }, [settings.language])
 
   // Load Chats list
@@ -158,8 +212,14 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (user) {
-      void loadChats()
+      const timer = window.setTimeout(() => {
+        void loadChats()
+      }, 0)
+
+      return () => window.clearTimeout(timer)
     }
+
+    return undefined
   }, [loadChats, user])
 
   // Select a chat
@@ -269,20 +329,22 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
     setIsSending(true)
     try {
-      // Create chat if none selected
       let activeChat = selectedChat
       if (!activeChat) {
         activeChat = await createChat(content.trim() ? content.trim() : 'Attachment Upload')
       }
 
-      // Post payload and retrieve both user and assistant responses
       const { data } = await api.post<ApiResource<{ user: ExtendedMessage; assistant: ExtendedMessage }>>(`/chats/${activeChat.id}/messages`, {
         role: 'user',
         content: content.trim(),
         attachments: attachments.length > 0 ? attachments : null,
       })
-      
-      setMessages((prev) => [...prev, data.data.user, data.data.assistant])
+
+      setMessages((prev) => [
+        ...prev,
+        data.data.user,
+        ...(data.data.assistant ? [data.data.assistant] : []),
+      ])
 
       // Trigger loadChats to refresh titles/counts/sorting on sidebar
       void loadChats()
@@ -294,6 +356,15 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       void loadChats()
     } catch (err) {
       showToast(errorMessage(err), 'error')
+      if (selectedChat) {
+        try {
+          const chatDetails = await api.get<ApiResource<ExtendedChat>>(`/chats/${selectedChat.id}`)
+          setSelectedChat(chatDetails.data.data)
+          setMessages(chatDetails.data.data.messages ?? [])
+        } catch {
+          // Keep the original send error visible.
+        }
+      }
     } finally {
       setIsSending(false)
     }
@@ -339,6 +410,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
   // Speech Recognition Controller
   const toggleSpeechRecognition = useCallback((onTranscript: (text: string) => void) => {
+    const recognition = recognitionRef.current
+
     if (!recognition) {
       showToast('Speech recognition not supported in this browser.', 'error')
       return
@@ -348,7 +421,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       recognition.stop()
       setIsListening(false)
     } else {
-      recognition.onresult = (event: any) => {
+      recognition.onresult = (event: SpeechRecognitionEventLike) => {
         let finalTranscript = ''
         for (let i = event.resultIndex; i < event.results.length; ++i) {
           if (event.results[i].isFinal) {
@@ -359,7 +432,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           onTranscript(finalTranscript)
         }
       }
-      recognition.onerror = (event: any) => {
+      recognition.onerror = (event: SpeechRecognitionErrorEventLike) => {
         showToast(`Speech recognition error: ${event.error}`, 'error')
         recognition.stop()
         setIsListening(false)
@@ -372,7 +445,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       setIsListening(true)
       showToast('Voice typing active. Speak clearly.', 'info')
     }
-  }, [recognition, isListening, showToast])
+  }, [isListening, showToast])
 
   // Speech Playback (TTS)
   const [speakingMessageId, setSpeakingMessageId] = useState<number | null>(null)
