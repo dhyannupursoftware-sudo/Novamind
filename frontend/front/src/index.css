@@ -78,3 +78,43 @@ button:disabled {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(103, 232, 249, 0.4);
 }
+
+/* Custom premium theme classes */
+.chat-bg {
+  background: radial-gradient(circle at 50% 0%, #1e1b4b 0%, #090a10 50%, #030408 100%) !important;
+}
+
+.sidebar-bg {
+  background: #06070a !important;
+}
+
+.user-message-bubble {
+  background: linear-gradient(135deg, rgba(79, 70, 229, 0.3) 0%, rgba(124, 58, 237, 0.2) 100%) !important;
+  border: 1px solid rgba(124, 58, 237, 0.3) !important;
+  box-shadow: 0 4px 24px rgba(99, 102, 241, 0.12) !important;
+}
+
+.assistant-message-card {
+  background: rgba(255, 255, 255, 0.02) !important;
+  border: 1px solid rgba(255, 255, 255, 0.04) !important;
+  backdrop-filter: blur(8px);
+}
+
+.input-container-glass {
+  background: rgba(15, 17, 28, 0.8) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  backdrop-filter: blur(24px);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.input-container-glass:focus-within {
+  border-color: rgba(99, 102, 241, 0.5) !important;
+  box-shadow: 0 10px 40px rgba(99, 102, 241, 0.2), 0 0 0 3px rgba(99, 102, 241, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+}
+
+.brand-gradient {
+  background: linear-gradient(135deg, #a5b4fc 0%, #c084fc 50%, #818cf8 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+}

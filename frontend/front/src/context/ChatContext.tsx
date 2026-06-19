@@ -386,7 +386,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         // Hide thinking indicator before starting the stream
         setIsThinking(false)
 
-        // Stream the assistant response word-by-word
+        // Stream the assistant response word-by-word but super snappy
         const words = assistantMsg.content.split(/(\s+)/)
         let currentText = ''
         let wordIndex = 0
@@ -395,15 +395,20 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           const interval = setInterval(() => {
             if (wordIndex < words.length) {
               currentText += words[wordIndex]
+              wordIndex++
+              // Stream slightly faster by appending another word-chunk if the response is long
+              if (words.length > 80 && wordIndex < words.length && Math.random() > 0.4) {
+                currentText += words[wordIndex]
+                wordIndex++
+              }
               setMessages((prev) =>
                 prev.map((m) => (m.id === assistantMsg.id ? { ...m, content: currentText } : m))
               )
-              wordIndex++
             } else {
               clearInterval(interval)
               resolve()
             }
-          }, 25)
+          }, 10)
         })
       }
 

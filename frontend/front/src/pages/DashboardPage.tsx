@@ -6,7 +6,6 @@ import {
   ChevronDown,
   Edit2,
   FileText,
-  Image as ImageIcon,
   Loader2,
   LogOut,
   Menu,
@@ -99,7 +98,7 @@ export function DashboardPage() {
 
   // Input states
   const [prompt, setPrompt] = useState('')
-  const [pendingAttachments, setPendingAttachments] = useState<{ id: string; name: string; type: string; size: number; file: File }[]>([])
+  const [pendingAttachments, setPendingAttachments] = useState<{ id: string; name: string; type: string; size: number; file: File; previewUrl?: string }[]>([])
   const [isUploadingFiles, setIsUploadingFiles] = useState(false)
   const [showScrollFAB, setShowScrollFAB] = useState(false)
 
@@ -294,20 +293,30 @@ export function DashboardPage() {
     const files = e.target.files
     if (!files) return
 
-    const newAttachments = Array.from(files).map((file: File) => ({
-      id: Math.random().toString(36).substring(2, 9),
-      name: file.name,
-      type: file.type,
-      size: file.size,
-      file,
-    }))
+    const newAttachments = Array.from(files).map((file: File) => {
+      const isImg = file.type.startsWith('image/')
+      return {
+        id: Math.random().toString(36).substring(2, 9),
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        file,
+        previewUrl: isImg ? URL.createObjectURL(file) : undefined
+      }
+    })
 
     setPendingAttachments((prev) => [...prev, ...newAttachments])
     e.target.value = '' 
   }
 
   const removePendingAttachment = (id: string) => {
-    setPendingAttachments((prev) => prev.filter((item) => item.id !== id))
+    setPendingAttachments((prev) => {
+      const target = prev.find((item) => item.id === id)
+      if (target?.previewUrl) {
+        URL.revokeObjectURL(target.previewUrl)
+      }
+      return prev.filter((item) => item.id !== id)
+    })
   }
 
   // Voice dictation transcription handler
@@ -325,6 +334,9 @@ export function DashboardPage() {
     setPrompt('')
     setIsUploadingFiles(true)
 
+    // Keep a reference of attachments to clean up local object URLs afterwards
+    const attachmentsToRevoke = [...pendingAttachments]
+
     try {
       const uploadedAttachments: Attachment[] = []
       for (const attachment of pendingAttachments) {
@@ -333,6 +345,11 @@ export function DashboardPage() {
       }
 
       setPendingAttachments([])
+      attachmentsToRevoke.forEach((item) => {
+        if (item.previewUrl) {
+          URL.revokeObjectURL(item.previewUrl)
+        }
+      })
       setIsUploadingFiles(false)
       await sendMessage(text, uploadedAttachments)
     } catch {
@@ -542,12 +559,12 @@ export function DashboardPage() {
   }
 
   return (
-    <main className="min-h-screen text-[#ececec] bg-[#171717] font-sans relative overflow-x-hidden">
+    <main className="min-h-screen text-[#ececec] chat-bg font-sans relative overflow-x-hidden">
       <div className="relative z-10 flex min-h-screen">
         
         {/* FIXED LEFT SIDEBAR (Desktop / Tablet) */}
         <aside
-          className={`fixed top-0 left-0 h-screen bg-[#0d0d0d] border-r border-white/[0.05] z-30 transition-all duration-300 select-none flex-col ${
+          className={`fixed top-0 left-0 h-screen sidebar-bg border-r border-white/[0.05] z-30 transition-all duration-300 select-none flex-col ${
             isFullscreen ? 'hidden' : 'hidden md:flex'
           } ${
             sidebarCollapsed ? 'w-[75px]' : 'w-[280px]'
@@ -559,7 +576,7 @@ export function DashboardPage() {
               <>
                 <div className="flex items-center gap-2 overflow-hidden select-none">
                   <img src="/favicon.svg" alt="NovaMind Logo" className="size-6" />
-                  <span className="text-sm font-semibold tracking-wide text-white">
+                  <span className="text-sm font-bold tracking-wide brand-gradient">
                     NovaMind AI
                   </span>
                 </div>
@@ -816,13 +833,13 @@ export function DashboardPage() {
                 animate={{ x: 0 }}
                 exit={{ x: -280 }}
                 transition={{ type: 'tween', duration: 0.3 }}
-                className="relative z-10 w-[280px] h-full bg-[#0d0d0d] border-r border-white/5 flex flex-col shadow-2xl"
+                className="relative z-10 w-[280px] h-full sidebar-bg border-r border-white/5 flex flex-col shadow-2xl"
               >
                 {/* Mobile Drawer Header */}
                 <div className="h-[60px] flex items-center justify-between px-3.5 border-b border-white/[0.05]">
                   <div className="flex items-center gap-2 select-none">
                     <img src="/favicon.svg" alt="NovaMind Logo" className="size-6" />
-                    <span className="text-sm font-semibold tracking-wide text-white">
+                    <span className="text-sm font-bold tracking-wide brand-gradient">
                       NovaMind AI
                     </span>
                   </div>
@@ -1055,7 +1072,7 @@ export function DashboardPage() {
 
         {/* MAIN PANEL CONTENT VIEWPORT */}
         <div 
-          className="flex-1 flex flex-col min-h-screen transition-all duration-300 bg-[#171717] min-w-0"
+          className="flex-1 flex flex-col min-h-screen transition-all duration-300 chat-bg min-w-0"
           style={{
             paddingLeft: isFullscreen
               ? '0px'
@@ -1066,7 +1083,7 @@ export function DashboardPage() {
         >
           
           {/* STICKY TOP NAVIGATION BAR */}
-          <header className="h-[60px] sticky top-0 bg-[#171717]/85 backdrop-blur-md px-6 flex items-center justify-between z-20 select-none border-b border-white/[0.03]">
+          <header className="h-[60px] sticky top-0 bg-[#0a0b10]/40 backdrop-blur-md px-6 flex items-center justify-between z-20 select-none border-b border-white/5">
             <div className="flex items-center gap-3">
               {/* Sidebar mobile toggle trigger */}
               {!isFullscreen && (
@@ -1078,11 +1095,11 @@ export function DashboardPage() {
                   <Menu size={18} />
                 </button>
               )}
-
+ 
               {/* Favicon Logo & Name */}
               <div className="flex items-center gap-2 select-none">
                 <img src="/favicon.svg" alt="NovaMind Logo" className="size-6 shrink-0" />
-                <span className="text-sm font-semibold tracking-wide text-white">
+                <span className="text-sm font-bold tracking-wide brand-gradient">
                   NovaMind AI
                 </span>
               </div>
@@ -1111,7 +1128,7 @@ export function DashboardPage() {
           {/* CHAT MESSAGES PANEL */}
           <div 
             onScroll={handleScroll}
-            className="flex-1 overflow-y-auto scrollbar-thin px-4 py-6 pb-36 flex flex-col gap-6 bg-[#171717]"
+            className="flex-1 overflow-y-auto scrollbar-thin px-4 py-6 pb-36 flex flex-col gap-6 bg-transparent"
           >
             <div className="w-full max-w-[768px] mx-auto flex-1 flex flex-col justify-between">
               
@@ -1165,7 +1182,7 @@ export function DashboardPage() {
                         {isUser ? (
                           /* User Prompt Bubble */
                           <div 
-                            className="w-full max-w-[80%] bg-[#2f2f2f] text-[#ececec] rounded-2xl px-4 py-3 shadow-md space-y-2 relative group border border-white/5"
+                            className="w-full max-w-[80%] user-message-bubble rounded-2xl px-4 py-3 shadow-md space-y-2 relative group"
                             style={{ contentVisibility: 'auto', containIntrinsicSize: '100px' }}
                           >
                             {editingMessageId === message.id ? (
@@ -1212,6 +1229,44 @@ export function DashboardPage() {
                                 <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-100">
                                   {message.content}
                                 </p>
+
+                                {/* User Attachments - Image previews directly */}
+                                {message.attachments && message.attachments.some((f) => f.type.startsWith('image/')) && (
+                                  <div className="mt-2.5 flex flex-wrap gap-2 justify-end">
+                                    {message.attachments.filter((f) => f.type.startsWith('image/')).map((file, idx) => (
+                                      <a
+                                        key={idx}
+                                        href={file.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="block overflow-hidden rounded-xl border border-white/10 hover:border-white/20 transition max-w-[280px] shadow-lg"
+                                      >
+                                        <img src={file.url} alt={file.name} className="max-h-56 w-full object-cover rounded-xl" />
+                                      </a>
+                                    ))}
+                                  </div>
+                                )}
+
+                                {/* User Attachments - Files rendering */}
+                                {message.attachments && message.attachments.some((f) => !f.type.startsWith('image/')) && (
+                                  <div className="mt-2.5 flex flex-wrap gap-2 justify-end">
+                                    {message.attachments.filter((f) => !f.type.startsWith('image/')).map((file, idx) => (
+                                      <a
+                                        key={idx}
+                                        href={file.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center gap-2 rounded-xl border border-white/10 bg-slate-950/60 p-2 pr-3.5 hover:bg-slate-950 transition max-w-[190px] text-left"
+                                      >
+                                        <FileText size={15} className="text-cyan-400 shrink-0" />
+                                        <div className="min-w-0 flex-1">
+                                          <p className="truncate text-[9px] font-semibold text-white">{file.name}</p>
+                                          <p className="text-[8px] text-slate-500">{(file.size / 1024).toFixed(1)} KB</p>
+                                        </div>
+                                      </a>
+                                    ))}
+                                  </div>
+                                )}
                               </>
                             )}
                           </div>
@@ -1225,7 +1280,7 @@ export function DashboardPage() {
 
                             {/* Content Block */}
                             <div 
-                              className="flex-1 space-y-3 max-w-[850px] group relative"
+                              className="flex-1 space-y-3 max-w-[850px] group relative assistant-message-card p-4 rounded-2xl"
                               style={{ contentVisibility: 'auto', containIntrinsicSize: '150px' }}
                             >
                               {/* Metadata */}
@@ -1251,31 +1306,41 @@ export function DashboardPage() {
                                 <MarkdownRenderer content={message.content} />
                               </div>
 
-                              {/* Attachments preview */}
-                              {message.attachments && message.attachments.length > 0 && (
-                                <div className="mt-3 flex flex-wrap gap-2 pt-2 border-t border-white/5">
-                                  {message.attachments.map((file: Attachment, index: number) => {
-                                    const isImg = file.type.startsWith('image/')
-                                    return (
-                                      <a
-                                        key={index}
-                                        href={file.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="flex items-center gap-2 rounded-lg border border-white/10 bg-slate-950/60 p-1.5 pr-2.5 hover:bg-slate-950 transition max-w-[190px]"
-                                      >
-                                        {isImg ? (
-                                          <img src={file.url} alt={file.name} className="size-8 rounded object-cover" />
-                                        ) : (
-                                          <FileText size={15} className="text-cyan-400 shrink-0" />
-                                        )}
-                                        <div className="min-w-0 flex-1">
-                                          <p className="truncate text-[9px] font-semibold text-white">{file.name}</p>
-                                          <p className="text-[8px] text-slate-555 text-slate-500">{(file.size / 1024).toFixed(1)} KB</p>
-                                        </div>
-                                      </a>
-                                    )
-                                  })}
+                              {/* Assistant Attachments - Image previews directly */}
+                              {message.attachments && message.attachments.some((f) => f.type.startsWith('image/')) && (
+                                <div className="mt-3 flex flex-wrap gap-2 pt-2 border-t border-white/5 justify-start">
+                                  {message.attachments.filter((f) => f.type.startsWith('image/')).map((file, idx) => (
+                                    <a
+                                      key={idx}
+                                      href={file.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="block overflow-hidden rounded-xl border border-white/10 hover:border-white/20 transition max-w-[280px] shadow-lg"
+                                    >
+                                      <img src={file.url} alt={file.name} className="max-h-56 w-full object-cover rounded-xl" />
+                                    </a>
+                                  ))}
+                                </div>
+                              )}
+
+                              {/* Assistant Attachments - Files rendering */}
+                              {message.attachments && message.attachments.some((f) => !f.type.startsWith('image/')) && (
+                                <div className="mt-2.5 flex flex-wrap gap-2 justify-start">
+                                  {message.attachments.filter((f) => !f.type.startsWith('image/')).map((file, idx) => (
+                                    <a
+                                      key={idx}
+                                      href={file.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="flex items-center gap-2 rounded-xl border border-white/10 bg-slate-950/60 p-2 pr-3.5 hover:bg-slate-950 transition max-w-[190px]"
+                                    >
+                                      <FileText size={15} className="text-cyan-400 shrink-0" />
+                                      <div className="min-w-0 flex-1">
+                                        <p className="truncate text-[9px] font-semibold text-white">{file.name}</p>
+                                        <p className="text-[8px] text-slate-500">{(file.size / 1024).toFixed(1)} KB</p>
+                                      </div>
+                                    </a>
+                                  ))}
                                 </div>
                               )}
 
@@ -1425,7 +1490,7 @@ export function DashboardPage() {
 
           {/* FIXED BOTTOM INPUT PANEL */}
           <footer 
-            className="fixed bottom-0 right-0 p-4 bg-gradient-to-t from-[#171717] via-[#171717]/95 to-transparent z-15 transition-all duration-300"
+            className="fixed bottom-0 right-0 p-4 bg-gradient-to-t from-[#0a0b10] via-[#0a0b10]/95 to-transparent z-15 transition-all duration-300"
             style={{
               left: isFullscreen
                 ? '0px'
@@ -1438,32 +1503,60 @@ export function DashboardPage() {
               
               {/* Pre-upload attachment file tags */}
               {pendingAttachments.length > 0 && (
-                <div className="mb-3 flex flex-wrap gap-2 p-2 rounded-xl border border-white/5 bg-slate-950/40">
-                  {pendingAttachments.map((item) => (
-                    <div
-                      key={item.id}
-                      className="flex items-center gap-2 rounded-lg border border-white/10 bg-[#212121] p-1.5 pr-2 text-xs text-white max-w-[200px]"
-                    >
-                      {item.type.startsWith('image/') ? (
-                        <ImageIcon size={14} className="text-emerald-400 shrink-0" />
-                      ) : (
-                        <Paperclip size={14} className="text-indigo-400 shrink-0" />
-                      )}
-                      <span className="truncate flex-1 font-semibold text-[10px]">{item.name}</span>
-                      <button
-                        type="button"
-                        onClick={() => removePendingAttachment(item.id)}
-                        className="rounded hover:bg-white/10 p-0.5 text-slate-400 hover:text-white transition"
+                <div className="mb-3 flex flex-wrap gap-3 p-3 rounded-2xl border border-white/5 bg-slate-950/40 select-none">
+                  {pendingAttachments.map((item) => {
+                    const isImg = item.type.startsWith('image/')
+                    return (
+                      <div
+                        key={item.id}
+                        className={`relative rounded-xl border border-white/10 bg-[#212121] overflow-hidden transition-all duration-250 ${
+                          isImg 
+                            ? 'size-16 group hover:border-indigo-500/50 shadow-md animate-in fade-in zoom-in duration-200' 
+                            : 'flex items-center gap-2 p-2 pr-3 text-xs text-white max-w-[200px] animate-in fade-in zoom-in duration-200'
+                        }`}
                       >
-                        <X size={12} />
-                      </button>
-                    </div>
-                  ))}
+                        {isImg ? (
+                          <>
+                            {/* Image thumbnail */}
+                            <img
+                              src={item.previewUrl}
+                              alt={item.name}
+                              className="size-full object-cover"
+                            />
+                            {/* Hover overlay with Delete button */}
+                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-150 flex items-center justify-center">
+                              <button
+                                type="button"
+                                onClick={() => removePendingAttachment(item.id)}
+                                className="p-1 rounded-full bg-rose-500/80 hover:bg-rose-600 text-white transition active:scale-95"
+                                title="Remove image"
+                              >
+                                <X size={14} />
+                              </button>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <Paperclip size={14} className="text-indigo-400 shrink-0" />
+                            <span className="truncate flex-1 font-semibold text-[10px]">{item.name}</span>
+                            <button
+                              type="button"
+                              onClick={() => removePendingAttachment(item.id)}
+                              className="rounded hover:bg-white/10 p-0.5 text-slate-400 hover:text-white transition"
+                              title="Remove file"
+                            >
+                              <X size={12} />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               )}
 
               {/* Pill-shaped ChatGPT input form container */}
-              <div className="relative rounded-[26px] bg-[#2f2f2f] px-3.5 py-1.5 shadow-xl border border-white/5">
+              <div className="relative rounded-[26px] input-container-glass px-3.5 py-1.5">
                 <form
                   onSubmit={handleSend}
                   className="flex items-center gap-2 min-h-[48px]"

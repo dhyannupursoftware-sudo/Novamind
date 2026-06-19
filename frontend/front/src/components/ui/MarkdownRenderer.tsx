@@ -43,8 +43,20 @@ function highlightCode(code: string, language: string): React.ReactNode {
 
   const placeholders: string[] = []
 
+  // Helper to convert index to spreadsheets-style alphabetical column ID (A, B, C... Z, AA...)
+  const toAlphaId = (num: number): string => {
+    let str = ''
+    let n = num
+    while (n >= 0) {
+      str = String.fromCharCode((n % 26) + 65) + str
+      n = Math.floor(n / 26) - 1
+    }
+    return str
+  }
+
   const savePlaceholder = (val: string, type: string) => {
-    const id = `___PLACEHOLDER_${placeholders.length}___`
+    const alphaId = toAlphaId(placeholders.length)
+    const id = `___PLACEHOLDER_${alphaId}___`
     let cssClass = ''
     if (type === 'comment') cssClass = 'text-slate-500 italic'
     else if (type === 'string') cssClass = 'text-emerald-400 font-medium'
@@ -57,6 +69,9 @@ function highlightCode(code: string, language: string): React.ReactNode {
   escaped = escaped.replace(commentRegex, (m) => savePlaceholder(m, 'comment'))
   escaped = escaped.replace(stringRegex, (m) => savePlaceholder(m, 'string'))
 
+  // Highlight Numbers FIRST before we inject class names like 'text-pink-400' which contain digits
+  escaped = escaped.replace(numberRegex, '<span class="text-amber-400">$1</span>')
+
   // Highlight Keywords
   const selectedKeywords = cleanLang === 'sql' ? sqlKeywords : keywords
   escaped = escaped.replace(
@@ -65,10 +80,7 @@ function highlightCode(code: string, language: string): React.ReactNode {
   )
 
   // Highlight Functions
-  escaped = escaped.replace(functionRegex, '<span class="text-sky-450 text-sky-400">$1</span>')
-
-  // Highlight Numbers
-  escaped = escaped.replace(numberRegex, '<span class="text-amber-400">$1</span>')
+  escaped = escaped.replace(functionRegex, '<span class="text-sky-400">$1</span>')
 
   // Highlight PHP specific tag elements
   if (cleanLang === 'php' || cleanLang === 'laravel') {
@@ -77,7 +89,8 @@ function highlightCode(code: string, language: string): React.ReactNode {
 
   // Restore placeholders
   for (let i = 0; i < placeholders.length; i++) {
-    escaped = escaped.replace(`___PLACEHOLDER_${i}___`, placeholders[i])
+    const alphaId = toAlphaId(i)
+    escaped = escaped.replace(`___PLACEHOLDER_${alphaId}___`, placeholders[i])
   }
 
   return <span dangerouslySetInnerHTML={{ __html: escaped }} />
