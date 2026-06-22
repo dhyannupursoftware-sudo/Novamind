@@ -48,7 +48,7 @@ class MessageController extends Controller
 
         $history = $chat->messages()
             ->oldest('created_at')
-            ->get(['role', 'content'])
+            ->get(['role', 'content', 'attachments'])
             ->toArray();
 
         $userSettings = $request->user()->settings()->firstOrCreate([], [

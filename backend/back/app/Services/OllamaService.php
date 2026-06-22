@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 use Throwable;
 
@@ -149,8 +150,8 @@ class OllamaService
     }
 
     /**
-     * @param array<int, array{role: string, content: string|null}> $historyMessages
-     * @return list<array{role: string, content: string}>
+     * @param array<int, array{role: string, content: string|null, attachments?: array|string|null}> $historyMessages
+     * @return list<array{role: string, content: string, images?: list<string>}>
      */
     private function buildPayloadMessages(array $historyMessages, string $modelSetting): array
     {
@@ -163,14 +164,44 @@ class OllamaService
             $role = (string) ($message['role'] ?? 'user');
             $content = trim((string) ($message['content'] ?? ''));
 
-            if ($content === '' || ! in_array($role, ['system', 'user', 'assistant'], true)) {
+            if (($content === '' && empty($message['attachments'])) || ! in_array($role, ['system', 'user', 'assistant'], true)) {
                 continue;
             }
 
-            $messages[] = [
+            $msgPayload = [
                 'role' => $role,
                 'content' => $content,
             ];
+
+            // Decode attachments if present and base64 encode images
+            if (!empty($message['attachments'])) {
+                $images = [];
+                $attachments = is_string($message['attachments'])
+                    ? json_decode($message['attachments'], true)
+                    : $message['attachments'];
+
+                if (is_array($attachments)) {
+                    foreach ($attachments as $attachment) {
+                        $type = $attachment['type'] ?? '';
+                        if (str_starts_with($type, 'image/')) {
+                            $url = $attachment['url'] ?? '';
+                            $fileName = basename(parse_url($url, PHP_URL_PATH));
+                            $storagePath = 'attachments/' . $fileName;
+
+                            if (Storage::disk('public')->exists($storagePath)) {
+                                $fileContents = Storage::disk('public')->get($storagePath);
+                                $images[] = base64_encode($fileContents);
+                            }
+                        }
+                    }
+                }
+
+                if (!empty($images)) {
+                    $msgPayload['images'] = $images;
+                }
+            }
+
+            $messages[] = $msgPayload;
         }
 
         return $messages;
@@ -178,12 +209,26 @@ class OllamaService
 
     private function systemPrompt(string $modelSetting): string
     {
-        $basePrompt = 'You are NovaMind AI running locally through Ollama with Qwen3. '
-            .'Answer clearly and directly. If the user asks only a simple arithmetic expression, '
-            .'return only the final numeric result, with no explanation.';
+        $basePrompt = "You are NovaMind AI. Always provide complete, detailed, professional, and comprehensive responses. Never return short answers or partial code unless explicitly requested by the user.
+
+When generating code:
+- Always generate complete files, including all imports and exports.
+- Include detailed comments and clear explanations.
+- Never use placeholders or shorthand comments (e.g. '// rest of your code goes here').
+- When asked to build a page or component, provide the full logic, CSS styling, and HTML structure.
+
+When explaining concepts:
+- Provide exhaustive explanations with step-by-step guidance.
+- Include concrete examples, common use cases, and design best practices.
+
+When asked to create a project or service (e.g., Laravel CRUD):
+- Outline the full file structure.
+- Generate complete database migrations, models, controllers, routes, validation request classes, and complete client integration examples.
+
+Always prefer detailed responses over short responses.";
 
         if ($modelSetting === 'nova-coder') {
-            return $basePrompt.' For programming tasks, provide production-ready code and concise reasoning.';
+            return $basePrompt . "\n\nFor programming tasks, prioritize production-ready code, performance optimizations, and exact type annotations.";
         }
 
         return $basePrompt;

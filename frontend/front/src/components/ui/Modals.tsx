@@ -45,6 +45,7 @@ interface LocalUiSettings {
   messageAnimations: boolean
   streamingResponse: boolean
   responseLength: 'short' | 'medium' | 'long'
+  detailLevel?: 'basic' | 'detailed' | 'expert'
   creativityLevel: 'precise' | 'balanced' | 'creative'
   codeFormatting: boolean
   markdownRendering: boolean
@@ -64,7 +65,8 @@ const DEFAULT_UI_SETTINGS: LocalUiSettings = {
   chatViewMode: 'comfortable',
   messageAnimations: true,
   streamingResponse: true,
-  responseLength: 'medium',
+  responseLength: 'long',
+  detailLevel: 'expert',
   creativityLevel: 'balanced',
   codeFormatting: true,
   markdownRendering: true,
@@ -902,6 +904,25 @@ export function SettingsModal({ isOpen, onClose }: ModalProps) {
                               }`}
                             >
                               {len}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Response Detail Level</label>
+                        <div className="grid grid-cols-3 gap-2.5">
+                          {(['basic', 'detailed', 'expert'] as const).map((det) => (
+                            <button
+                              key={det}
+                              onClick={() => updateUiSetting('detailLevel', det)}
+                              className={`px-3 py-2 text-xs font-semibold rounded-lg border transition uppercase tracking-wider ${
+                                uiSettings.detailLevel === det 
+                                  ? 'bg-indigo-500/10 text-indigo-300 border-indigo-500/20' 
+                                  : 'bg-white/[0.01] border-white/5 hover:bg-white/5 text-slate-400'
+                              }`}
+                            >
+                              {det}
                             </button>
                           ))}
                         </div>

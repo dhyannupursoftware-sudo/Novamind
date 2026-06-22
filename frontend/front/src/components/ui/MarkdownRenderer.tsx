@@ -418,23 +418,28 @@ function parseNormalMarkdown(text: string): React.ReactNode[] {
 }
 
 export function MarkdownRenderer({ content }: { content: string }) {
+  // Strip out raw file contents text injected by frontend
+  const cleanedContent = content.replace(/<file_content[^>]*>[\s\S]*?<\/file_content>/gi, '').trim()
+
+  if (!cleanedContent) return null
+
   const parts: React.ReactNode[] = []
   let currentIndex = 0
 
-  while (currentIndex < content.length) {
-    const openIndex = content.indexOf('```', currentIndex)
+  while (currentIndex < cleanedContent.length) {
+    const openIndex = cleanedContent.indexOf('```', currentIndex)
     if (openIndex === -1) {
-      parts.push(parseNormalMarkdown(content.substring(currentIndex)))
+      parts.push(parseNormalMarkdown(cleanedContent.substring(currentIndex)))
       break
     }
 
     if (openIndex > currentIndex) {
-      parts.push(parseNormalMarkdown(content.substring(currentIndex, openIndex)))
+      parts.push(parseNormalMarkdown(cleanedContent.substring(currentIndex, openIndex)))
     }
 
-    const closeIndex = content.indexOf('```', openIndex + 3)
+    const closeIndex = cleanedContent.indexOf('```', openIndex + 3)
     if (closeIndex === -1) {
-      const codeContent = content.substring(openIndex + 3)
+      const codeContent = cleanedContent.substring(openIndex + 3)
       const firstNewLine = codeContent.indexOf('\n')
       let lang = 'plaintext'
       let code = codeContent
@@ -452,7 +457,7 @@ export function MarkdownRenderer({ content }: { content: string }) {
       )
       break
     } else {
-      const codeContent = content.substring(openIndex + 3, closeIndex)
+      const codeContent = cleanedContent.substring(openIndex + 3, closeIndex)
       const firstNewLine = codeContent.indexOf('\n')
       let lang = 'plaintext'
       let code = codeContent
@@ -472,5 +477,5 @@ export function MarkdownRenderer({ content }: { content: string }) {
     }
   }
 
-  return <div className="space-y-1.5">{parts}</div>
+  return <div className="space-y-2">{parts}</div>
 }

@@ -34,6 +34,7 @@ interface LocalUiSettings {
   messageAnimations: boolean
   streamingResponse: boolean
   responseLength: 'short' | 'medium' | 'long'
+  detailLevel?: 'basic' | 'detailed' | 'expert'
   creativityLevel: 'precise' | 'balanced' | 'creative'
   codeFormatting: boolean
   markdownRendering: boolean
@@ -53,7 +54,8 @@ const DEFAULT_UI_SETTINGS: LocalUiSettings = {
   chatViewMode: 'comfortable',
   messageAnimations: true,
   streamingResponse: true,
-  responseLength: 'medium',
+  responseLength: 'long',
+  detailLevel: 'expert',
   creativityLevel: 'balanced',
   codeFormatting: true,
   markdownRendering: true,
@@ -560,6 +562,26 @@ export function SettingsPage() {
                             }`}
                           >
                             {len}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Response Detail Level select */}
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs font-bold text-slate-350 uppercase tracking-wider">Response Detail Level</label>
+                      <div className="grid grid-cols-3 gap-3">
+                        {(['basic', 'detailed', 'expert'] as const).map((det) => (
+                          <button
+                            key={det}
+                            onClick={() => updateUiSetting('detailLevel', det)}
+                            className={`px-4 py-3 text-xs font-semibold rounded-xl border transition uppercase tracking-wider ${
+                              uiSettings.detailLevel === det 
+                                ? 'bg-indigo-500/10 text-indigo-300 border-indigo-500/30' 
+                                : 'bg-[#0F172A]/40 border-white/5 hover:bg-white/[0.03] text-slate-400'
+                            }`}
+                          >
+                            {det}
                           </button>
                         ))}
                       </div>

@@ -37,8 +37,12 @@ import {
   RefreshCw,
   FileDown,
   Edit3,
-  Copy
+  Copy,
+  ZoomIn,
+  ZoomOut,
+  Play
 } from 'lucide-react'
+import { parseFileContent } from '../lib/fileParser'
 import { MarkdownRenderer } from '../components/ui/MarkdownRenderer'
 import { useAuth } from '../context/useAuth'
 import { useChat, type ExtendedChat, type Attachment, type ExtendedMessage } from '../context/ChatContext'
@@ -101,6 +105,37 @@ export function DashboardPage() {
   const [pendingAttachments, setPendingAttachments] = useState<{ id: string; name: string; type: string; size: number; file: File; previewUrl?: string }[]>([])
   const [isUploadingFiles, setIsUploadingFiles] = useState(false)
   const [showScrollFAB, setShowScrollFAB] = useState(false)
+
+  // New Modal and Actions states for Multimodal System
+  const [activeImageViewerUrl, setActiveImageViewerUrl] = useState<string | null>(null)
+  const [activeImageViewerName, setActiveImageViewerName] = useState<string | null>(null)
+  const [activeVideoPlayerUrl, setActiveVideoPlayerUrl] = useState<string | null>(null)
+  const [activeVideoPlayerName, setActiveVideoPlayerName] = useState<string | null>(null)
+  const [zoomScale, setZoomScale] = useState<number>(1)
+  const [imageFullscreen, setImageFullscreen] = useState<boolean>(false)
+  const [deletedAttachmentUrls, setDeletedAttachmentUrls] = useState<string[]>([])
+
+  const handleCopyLink = async (url: string) => {
+    try {
+      await navigator.clipboard.writeText(url)
+      showToast('Link copied to clipboard!', 'success')
+    } catch {
+      showToast('Failed to copy link', 'error')
+    }
+  }
+
+  const handleDownloadAttachment = (url: string, name: string) => {
+    const link = document.createElement('a')
+    link.href = url
+    link.download = name
+    link.target = '_blank'
+    link.click()
+  }
+
+  const handleDeleteAttachment = (url: string) => {
+    setDeletedAttachmentUrls((prev) => [...prev, url])
+    showToast('Attachment deleted from view', 'success')
+  }
 
   // In-place rename
   const [renamingId, setRenamingId] = useState<number | null>(null)
@@ -338,6 +373,20 @@ export function DashboardPage() {
     const attachmentsToRevoke = [...pendingAttachments]
 
     try {
+      // Parse file contents first and wrap them in file_content tags
+      let finalPrompt = text
+      for (const item of pendingAttachments) {
+        try {
+          const parsedText = await parseFileContent(item.file)
+          if (parsedText) {
+            const isVideo = item.type.startsWith('video/')
+            finalPrompt = `<file_content name="${item.name}"${isVideo ? ' meta="true"' : ''}>\n${parsedText}\n</file_content>\n\n` + finalPrompt
+          }
+        } catch (err) {
+          console.error(`Failed to parse file ${item.name}:`, err)
+        }
+      }
+
       const uploadedAttachments: Attachment[] = []
       for (const attachment of pendingAttachments) {
         const uploaded = await uploadFile(attachment.file)
@@ -351,7 +400,7 @@ export function DashboardPage() {
         }
       })
       setIsUploadingFiles(false)
-      await sendMessage(text, uploadedAttachments)
+      await sendMessage(finalPrompt, uploadedAttachments)
     } catch {
       showToast('Error sending message: files failed to upload.', 'error')
       setIsUploadingFiles(false)
@@ -1231,40 +1280,86 @@ export function DashboardPage() {
                                 </p>
 
                                 {/* User Attachments - Image previews directly */}
-                                {message.attachments && message.attachments.some((f) => f.type.startsWith('image/')) && (
+                                {message.attachments && message.attachments.some((f) => f.type.startsWith('image/') && !deletedAttachmentUrls.includes(f.url)) && (
                                   <div className="mt-2.5 flex flex-wrap gap-2 justify-end">
-                                    {message.attachments.filter((f) => f.type.startsWith('image/')).map((file, idx) => (
-                                      <a
-                                        key={idx}
-                                        href={file.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="block overflow-hidden rounded-xl border border-white/10 hover:border-white/20 transition max-w-[280px] shadow-lg"
-                                      >
-                                        <img src={file.url} alt={file.name} className="max-h-56 w-full object-cover rounded-xl" />
-                                      </a>
+                                    {message.attachments.filter((f) => f.type.startsWith('image/') && !deletedAttachmentUrls.includes(f.url)).map((file, idx) => (
+                                      <div key={idx} className="relative group">
+                                        <button
+                                          onClick={() => {
+                                            setActiveImageViewerUrl(file.url)
+                                            setActiveImageViewerName(file.name)
+                                            setZoomScale(1)
+                                            setImageFullscreen(false)
+                                          }}
+                                          className="block overflow-hidden rounded-xl border border-white/10 hover:border-white/20 transition max-w-[280px] shadow-lg text-left"
+                                        >
+                                          <img src={file.url} alt={file.name} className="max-h-56 w-full object-cover rounded-xl" />
+                                        </button>
+                                        {/* Quick Actions overlay for images */}
+                                        <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-[#1e1e1e]/85 backdrop-blur rounded-lg p-1 border border-white/10 shadow-lg">
+                                          <button onClick={() => handleDownloadAttachment(file.url, file.name)} className="p-1 hover:bg-white/10 rounded text-slate-350 hover:text-white" title="Download"><FileDown size={11} /></button>
+                                          <button onClick={() => handleCopyLink(file.url)} className="p-1 hover:bg-white/10 rounded text-slate-350 hover:text-white" title="Copy Link"><Copy size={11} /></button>
+                                          <button onClick={() => handleDeleteAttachment(file.url)} className="p-1 hover:bg-rose-500/25 rounded text-rose-400 hover:text-rose-300" title="Delete"><Trash2 size={11} /></button>
+                                        </div>
+                                      </div>
                                     ))}
                                   </div>
                                 )}
 
                                 {/* User Attachments - Files rendering */}
-                                {message.attachments && message.attachments.some((f) => !f.type.startsWith('image/')) && (
+                                {message.attachments && message.attachments.some((f) => !f.type.startsWith('image/') && !deletedAttachmentUrls.includes(f.url)) && (
                                   <div className="mt-2.5 flex flex-wrap gap-2 justify-end">
-                                    {message.attachments.filter((f) => !f.type.startsWith('image/')).map((file, idx) => (
-                                      <a
-                                        key={idx}
-                                        href={file.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="flex items-center gap-2 rounded-xl border border-white/10 bg-slate-950/60 p-2 pr-3.5 hover:bg-slate-950 transition max-w-[190px] text-left"
-                                      >
-                                        <FileText size={15} className="text-cyan-400 shrink-0" />
-                                        <div className="min-w-0 flex-1">
-                                          <p className="truncate text-[9px] font-semibold text-white">{file.name}</p>
-                                          <p className="text-[8px] text-slate-500">{(file.size / 1024).toFixed(1)} KB</p>
+                                    {message.attachments.filter((f) => !f.type.startsWith('image/') && !deletedAttachmentUrls.includes(f.url)).map((file, idx) => {
+                                      const isVideo = file.type.startsWith('video/')
+                                      const isPdf = file.type === 'application/pdf' || file.name.endsWith('.pdf')
+
+                                      return (
+                                        <div
+                                          key={idx}
+                                          className="relative group flex items-center gap-3 rounded-xl border border-white/10 bg-slate-950/60 p-3 pr-4 hover:bg-slate-950 transition min-w-[220px] max-w-[280px] text-left"
+                                        >
+                                          <div className="size-10 rounded-lg bg-white/5 flex items-center justify-center shrink-0">
+                                            {isVideo ? (
+                                              <Play size={18} className="text-indigo-400" />
+                                            ) : isPdf ? (
+                                              <FileText size={18} className="text-rose-400" />
+                                            ) : (
+                                              <FileText size={18} className="text-cyan-400" />
+                                            )}
+                                          </div>
+                                          <div className="min-w-0 flex-1">
+                                            <p className="truncate text-xs font-semibold text-white">{file.name}</p>
+                                            <p className="text-[10px] text-slate-500 font-medium">{(file.size / 1024).toFixed(1)} KB</p>
+                                          </div>
+                                          {/* Quick Actions overlay for files */}
+                                          <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-[#212121] border border-white/10 rounded-lg p-1 shadow-lg">
+                                            {isVideo ? (
+                                              <button
+                                                onClick={() => {
+                                                  setActiveVideoPlayerUrl(file.url)
+                                                  setActiveVideoPlayerName(file.name)
+                                                }}
+                                                className="p-1 hover:bg-white/10 rounded text-indigo-400"
+                                                title="Play Video"
+                                              >
+                                                <Play size={11} />
+                                              </button>
+                                            ) : (
+                                              <button
+                                                onClick={() => window.open(file.url, '_blank')}
+                                                className="p-1 hover:bg-white/10 rounded text-cyan-400"
+                                                title="Open in Tab"
+                                              >
+                                                <ArrowUp size={11} className="rotate-45" />
+                                              </button>
+                                            )}
+                                            <button onClick={() => handleDownloadAttachment(file.url, file.name)} className="p-1 hover:bg-white/10 rounded text-slate-300" title="Download"><FileDown size={11} /></button>
+                                            <button onClick={() => handleCopyLink(file.url)} className="p-1 hover:bg-white/10 rounded text-slate-300" title="Copy Link"><Copy size={11} /></button>
+                                            <button onClick={() => handleDeleteAttachment(file.url)} className="p-1 hover:bg-rose-500/20 rounded text-rose-400" title="Delete"><Trash2 size={11} /></button>
+                                          </div>
                                         </div>
-                                      </a>
-                                    ))}
+                                      )
+                                    })}
                                   </div>
                                 )}
                               </>
@@ -1307,40 +1402,86 @@ export function DashboardPage() {
                               </div>
 
                               {/* Assistant Attachments - Image previews directly */}
-                              {message.attachments && message.attachments.some((f) => f.type.startsWith('image/')) && (
+                              {message.attachments && message.attachments.some((f) => f.type.startsWith('image/') && !deletedAttachmentUrls.includes(f.url)) && (
                                 <div className="mt-3 flex flex-wrap gap-2 pt-2 border-t border-white/5 justify-start">
-                                  {message.attachments.filter((f) => f.type.startsWith('image/')).map((file, idx) => (
-                                    <a
-                                      key={idx}
-                                      href={file.url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="block overflow-hidden rounded-xl border border-white/10 hover:border-white/20 transition max-w-[280px] shadow-lg"
-                                    >
-                                      <img src={file.url} alt={file.name} className="max-h-56 w-full object-cover rounded-xl" />
-                                    </a>
+                                  {message.attachments.filter((f) => f.type.startsWith('image/') && !deletedAttachmentUrls.includes(f.url)).map((file, idx) => (
+                                    <div key={idx} className="relative group">
+                                      <button
+                                        onClick={() => {
+                                          setActiveImageViewerUrl(file.url)
+                                          setActiveImageViewerName(file.name)
+                                          setZoomScale(1)
+                                          setImageFullscreen(false)
+                                        }}
+                                        className="block overflow-hidden rounded-xl border border-white/10 hover:border-white/20 transition max-w-[280px] shadow-lg text-left"
+                                      >
+                                        <img src={file.url} alt={file.name} className="max-h-56 w-full object-cover rounded-xl" />
+                                      </button>
+                                      {/* Quick Actions overlay for images */}
+                                      <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-[#1e1e1e]/85 backdrop-blur rounded-lg p-1 border border-white/10 shadow-lg">
+                                        <button onClick={() => handleDownloadAttachment(file.url, file.name)} className="p-1 hover:bg-white/10 rounded text-slate-350 hover:text-white" title="Download"><FileDown size={11} /></button>
+                                        <button onClick={() => handleCopyLink(file.url)} className="p-1 hover:bg-white/10 rounded text-slate-350 hover:text-white" title="Copy Link"><Copy size={11} /></button>
+                                        <button onClick={() => handleDeleteAttachment(file.url)} className="p-1 hover:bg-rose-500/25 rounded text-rose-400 hover:text-rose-300" title="Delete"><Trash2 size={11} /></button>
+                                      </div>
+                                    </div>
                                   ))}
                                 </div>
                               )}
 
                               {/* Assistant Attachments - Files rendering */}
-                              {message.attachments && message.attachments.some((f) => !f.type.startsWith('image/')) && (
+                              {message.attachments && message.attachments.some((f) => !f.type.startsWith('image/') && !deletedAttachmentUrls.includes(f.url)) && (
                                 <div className="mt-2.5 flex flex-wrap gap-2 justify-start">
-                                  {message.attachments.filter((f) => !f.type.startsWith('image/')).map((file, idx) => (
-                                    <a
-                                      key={idx}
-                                      href={file.url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="flex items-center gap-2 rounded-xl border border-white/10 bg-slate-950/60 p-2 pr-3.5 hover:bg-slate-950 transition max-w-[190px]"
-                                    >
-                                      <FileText size={15} className="text-cyan-400 shrink-0" />
-                                      <div className="min-w-0 flex-1">
-                                        <p className="truncate text-[9px] font-semibold text-white">{file.name}</p>
-                                        <p className="text-[8px] text-slate-500">{(file.size / 1024).toFixed(1)} KB</p>
+                                  {message.attachments.filter((f) => !f.type.startsWith('image/') && !deletedAttachmentUrls.includes(f.url)).map((file, idx) => {
+                                    const isVideo = file.type.startsWith('video/')
+                                    const isPdf = file.type === 'application/pdf' || file.name.endsWith('.pdf')
+
+                                    return (
+                                      <div
+                                        key={idx}
+                                        className="relative group flex items-center gap-3 rounded-xl border border-white/10 bg-slate-950/60 p-3 pr-4 hover:bg-slate-950 transition min-w-[220px] max-w-[280px]"
+                                      >
+                                        <div className="size-10 rounded-lg bg-white/5 flex items-center justify-center shrink-0">
+                                          {isVideo ? (
+                                            <Play size={18} className="text-indigo-400" />
+                                          ) : isPdf ? (
+                                            <FileText size={18} className="text-rose-400" />
+                                          ) : (
+                                            <FileText size={18} className="text-cyan-400" />
+                                          )}
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                          <p className="truncate text-xs font-semibold text-white">{file.name}</p>
+                                          <p className="text-[10px] text-slate-500 font-medium">{(file.size / 1024).toFixed(1)} KB</p>
+                                        </div>
+                                        {/* Quick Actions overlay for files */}
+                                        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-[#212121] border border-white/10 rounded-lg p-1 shadow-lg">
+                                          {isVideo ? (
+                                            <button
+                                              onClick={() => {
+                                                setActiveVideoPlayerUrl(file.url)
+                                                setActiveVideoPlayerName(file.name)
+                                              }}
+                                              className="p-1 hover:bg-white/10 rounded text-indigo-400"
+                                              title="Play Video"
+                                            >
+                                              <Play size={11} />
+                                            </button>
+                                          ) : (
+                                            <button
+                                              onClick={() => window.open(file.url, '_blank')}
+                                              className="p-1 hover:bg-white/10 rounded text-cyan-400"
+                                              title="Open in Tab"
+                                            >
+                                              <ArrowUp size={11} className="rotate-45" />
+                                            </button>
+                                          )}
+                                          <button onClick={() => handleDownloadAttachment(file.url, file.name)} className="p-1 hover:bg-white/10 rounded text-slate-300" title="Download"><FileDown size={11} /></button>
+                                          <button onClick={() => handleCopyLink(file.url)} className="p-1 hover:bg-white/10 rounded text-slate-300" title="Copy Link"><Copy size={11} /></button>
+                                          <button onClick={() => handleDeleteAttachment(file.url)} className="p-1 hover:bg-rose-500/20 rounded text-rose-400" title="Delete"><Trash2 size={11} /></button>
+                                        </div>
                                       </div>
-                                    </a>
-                                  ))}
+                                    )
+                                  })}
                                 </div>
                               )}
 
@@ -1633,6 +1774,110 @@ export function DashboardPage() {
       {/* Dynamic Profile and Settings as popups (modals) */}
       <ProfileModal isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} />
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+
+      {/* Image Viewer Popup Modal */}
+      {activeImageViewerUrl && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          {/* Top Info Bar */}
+          <div className="absolute top-4 left-6 right-6 flex items-center justify-between z-10 text-white select-none">
+            <span className="text-sm font-semibold truncate max-w-lg">{activeImageViewerName}</span>
+            <button
+              onClick={() => setActiveImageViewerUrl(null)}
+              className="rounded-full bg-white/10 hover:bg-white/20 p-2 text-white transition active:scale-95 cursor-pointer"
+              title="Close image viewer"
+            >
+              <X size={18} />
+            </button>
+          </div>
+
+          {/* Main Viewer Area */}
+          <div 
+            className="flex-1 w-full flex items-center justify-center overflow-auto select-none"
+            onClick={() => setActiveImageViewerUrl(null)}
+          >
+            <div 
+              onClick={(e) => e.stopPropagation()}
+              className="transition-transform duration-200 ease-out"
+              style={{
+                transform: `scale(${zoomScale})`,
+                maxHeight: imageFullscreen ? '100vh' : '80vh',
+                maxWidth: imageFullscreen ? '100vw' : '90vw',
+              }}
+            >
+              <img 
+                src={activeImageViewerUrl} 
+                alt={activeImageViewerName || ''} 
+                className="max-h-[80vh] max-w-[90vw] object-contain rounded-lg shadow-2xl border border-white/10"
+              />
+            </div>
+          </div>
+
+          {/* Bottom Zoom / Control Panel */}
+          <div className="absolute bottom-6 flex items-center gap-3 bg-[#212121]/90 backdrop-blur border border-white/10 px-4 py-2 rounded-full shadow-2xl z-10 select-none">
+            <button
+              onClick={() => setZoomScale(prev => Math.max(0.5, prev - 0.25))}
+              className="p-2 text-slate-350 hover:text-white hover:bg-white/5 rounded-full transition active:scale-90 cursor-pointer"
+              title="Zoom Out"
+            >
+              <ZoomOut size={16} />
+            </button>
+            <span className="text-xs font-semibold text-white px-1">{Math.round(zoomScale * 100)}%</span>
+            <button
+              onClick={() => setZoomScale(prev => Math.min(3, prev + 0.25))}
+              className="p-2 text-slate-350 hover:text-white hover:bg-white/5 rounded-full transition active:scale-90 cursor-pointer"
+              title="Zoom In"
+            >
+              <ZoomIn size={16} />
+            </button>
+            <div className="h-4 w-px bg-white/10" />
+            <button
+              onClick={() => {
+                setZoomScale(1)
+                setImageFullscreen(false)
+              }}
+              className="p-2 text-slate-350 hover:text-white hover:bg-white/5 rounded-full transition active:scale-90 cursor-pointer"
+              title="Reset Zoom"
+            >
+              <RefreshCw size={14} />
+            </button>
+            <button
+              onClick={() => setImageFullscreen(!imageFullscreen)}
+              className="p-2 text-slate-350 hover:text-white hover:bg-white/5 rounded-full transition active:scale-90 cursor-pointer"
+              title={imageFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+            >
+              {imageFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Video Player Popup Modal */}
+      {activeVideoPlayerUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className="relative w-full max-w-4xl bg-[#0d0d0d] border border-white/10 rounded-2xl overflow-hidden shadow-2xl flex flex-col">
+            {/* Header */}
+            <div className="px-6 py-4 flex items-center justify-between border-b border-white/5 bg-[#171717]/85 text-white select-none">
+              <span className="text-sm font-semibold truncate max-w-lg">{activeVideoPlayerName}</span>
+              <button
+                onClick={() => setActiveVideoPlayerUrl(null)}
+                className="rounded-full bg-white/5 hover:bg-white/10 p-1.5 text-slate-300 hover:text-white transition active:scale-95 cursor-pointer"
+                title="Close video player"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            {/* Video Canvas */}
+            <div className="bg-black aspect-video flex items-center justify-center">
+              <video
+                src={activeVideoPlayerUrl}
+                controls
+                autoPlay
+                className="w-full h-full object-contain"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }
