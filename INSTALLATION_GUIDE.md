@@ -110,7 +110,7 @@ Ensure `.env` values are set as follows to link frontend and backend:
 APP_URL=http://localhost:8000
 FRONTEND_URL=http://localhost:5173
 DB_DATABASE=novamind_ai
-DB_USERNAME=root
+DB_USERNAME=
 DB_PASSWORD=
 
 # Ollama local port mapping
