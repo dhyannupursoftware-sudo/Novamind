@@ -887,6 +887,7 @@ export function SettingsModal({ isOpen, onClose }: ModalProps) {
                           <option value="nova-pro" style={{ backgroundColor: '#212121', color: '#ececec' }}>NovaMind Ultra Pro (Max Context)</option>
                           <option value="nova-lite" style={{ backgroundColor: '#212121', color: '#ececec' }}>NovaMind Lite (Fast Speed)</option>
                           <option value="nova-coder" style={{ backgroundColor: '#212121', color: '#ececec' }}>NovaMind Coder (Code & Logic)</option>
+                          <option value="gemini-1.5-flash" style={{ backgroundColor: '#212121', color: '#ececec' }}>Gemini 1.5 Flash (Google AI Studio)</option>
                         </select>
                       </div>
 

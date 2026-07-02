@@ -348,6 +348,74 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     // Instantly append user message
     setMessages((prev) => [...prev, tempUserMsg])
 
+    if (settings.model === 'gemini-1.5-flash') {
+      try {
+        const { data } = await api.post<{ response: string }>('/gemini/chat', {
+          message: content.trim(),
+        })
+
+        const assistantMsgId = -Date.now() - 1
+        const assistantMsg: ExtendedMessage = {
+          id: assistantMsgId,
+          chat_id: selectedChat?.id || 0,
+          role: 'assistant',
+          content: data.response,
+          attachments: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }
+
+        // Add empty assistant placeholder first
+        const placeholderAssistant: ExtendedMessage = {
+          ...assistantMsg,
+          content: '',
+        }
+
+        setMessages((prev) => {
+          const filtered = prev.filter((m) => m.id !== tempUserMsgId)
+          const userMsg: ExtendedMessage = {
+            ...tempUserMsg,
+            id: Date.now(),
+          }
+          return [...filtered, userMsg, placeholderAssistant]
+        })
+
+        setIsThinking(false)
+
+        // Stream the assistant response word-by-word
+        const words = data.response.split(/(\s+)/)
+        let currentText = ''
+        let wordIndex = 0
+
+        await new Promise<void>((resolve) => {
+          const interval = setInterval(() => {
+            if (wordIndex < words.length) {
+              currentText += words[wordIndex]
+              wordIndex++
+              if (words.length > 80 && wordIndex < words.length && Math.random() > 0.4) {
+                currentText += words[wordIndex]
+                wordIndex++
+              }
+              setMessages((prev) =>
+                prev.map((m) => (m.id === assistantMsgId ? { ...m, content: currentText } : m))
+              )
+            } else {
+              clearInterval(interval)
+              resolve()
+            }
+          }, 10)
+        })
+
+      } catch (err) {
+        showToast(errorMessage(err), 'error')
+        setMessages((prev) => prev.filter((m) => m.id !== tempUserMsgId))
+        setIsThinking(false)
+      } finally {
+        setIsSending(false)
+      }
+      return
+    }
+
     try {
       let activeChat = selectedChat
       if (!activeChat) {

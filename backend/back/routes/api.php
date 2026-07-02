@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\AiHealthController;
 use App\Http\Controllers\Api\ChatController;
 use App\Http\Controllers\Api\MessageController;
 use App\Http\Controllers\Api\SettingController;
+use App\Http\Controllers\Api\GeminiController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function (): void {
@@ -26,6 +27,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::apiResource('chats', ChatController::class);
     Route::post('chats/{chat}/messages', [MessageController::class, 'store']);
     Route::post('upload', [AttachmentController::class, 'upload']);
+    Route::post('gemini/chat', [GeminiController::class, 'chat']);
 
     Route::get('settings', [SettingController::class, 'show']);
     Route::put('settings', [SettingController::class, 'update']);

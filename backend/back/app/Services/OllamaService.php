@@ -61,21 +61,26 @@ class OllamaService
      */
     public function getAvailableModels(): array
     {
-        $response = Http::connectTimeout($this->connectTimeout)
-            ->timeout(10)
-            ->acceptJson()
-            ->get("{$this->host}/api/tags");
+        try {
+            $response = Http::connectTimeout($this->connectTimeout)
+                ->timeout(30)
+                ->acceptJson()
+                ->get("{$this->host}/api/tags");
 
-        if (! $response->successful()) {
-            throw new RuntimeException("Ollama tags endpoint returned HTTP {$response->status()}.");
+            if (! $response->successful()) {
+                throw new RuntimeException("Ollama tags endpoint returned HTTP {$response->status()}.");
+            }
+
+            $models = $response->json('models') ?? [];
+
+            return array_values(array_filter(array_map(
+                fn (array $model): string => (string) ($model['name'] ?? ''),
+                $models,
+            )));
+        } catch (Throwable $throwable) {
+            \Illuminate\Support\Facades\Log::warning('Failed to fetch Ollama models, using fallback. Error: ' . $throwable->getMessage());
+            return [$this->defaultModel];
         }
-
-        $models = $response->json('models') ?? [];
-
-        return array_values(array_filter(array_map(
-            fn (array $model): string => (string) ($model['name'] ?? ''),
-            $models,
-        )));
     }
 
     /**
