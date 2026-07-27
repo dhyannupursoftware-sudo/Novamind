@@ -21,51 +21,6 @@ import { FormField } from '../components/ui/FormField'
 import { errorMessage } from '../lib/api'
 import type { ThemeMode } from '../types/api'
 
-// Define default UI settings key in LocalStorage
-const LOCAL_SETTINGS_KEY = 'novamind_ui_settings'
-
-interface LocalUiSettings {
-  chatBubbleStyle: 'modern-pill' | 'compact-classic' | 'glassmorphism'
-  fontSize: 'small' | 'medium' | 'large'
-  autoScroll: boolean
-  showTypingIndicator: boolean
-  showTimestamps: boolean
-  chatViewMode: 'compact' | 'comfortable'
-  messageAnimations: boolean
-  streamingResponse: boolean
-  responseLength: 'short' | 'medium' | 'long'
-  detailLevel?: 'basic' | 'detailed' | 'expert'
-  creativityLevel: 'precise' | 'balanced' | 'creative'
-  codeFormatting: boolean
-  markdownRendering: boolean
-  fullscreenDefault: boolean
-  autoSaveDrafts: boolean
-  autoCopyCode: boolean
-  performanceMode: boolean
-  developerMode: boolean
-}
-
-const DEFAULT_UI_SETTINGS: LocalUiSettings = {
-  chatBubbleStyle: 'glassmorphism',
-  fontSize: 'medium',
-  autoScroll: true,
-  showTypingIndicator: true,
-  showTimestamps: true,
-  chatViewMode: 'comfortable',
-  messageAnimations: true,
-  streamingResponse: true,
-  responseLength: 'long',
-  detailLevel: 'expert',
-  creativityLevel: 'balanced',
-  codeFormatting: true,
-  markdownRendering: true,
-  fullscreenDefault: false,
-  autoSaveDrafts: true,
-  autoCopyCode: false,
-  performanceMode: true,
-  developerMode: false
-}
-
 export function SettingsPage() {
   const navigate = useNavigate()
   const { user, updateProfile, logout } = useAuth()
@@ -75,7 +30,9 @@ export function SettingsPage() {
     chats,
     selectedChat,
     setMessages,
-    deleteChat
+    deleteChat,
+    uiSettings,
+    updateUiSetting
   } = useChat()
   const { showToast } = useToast()
 
@@ -96,19 +53,6 @@ export function SettingsPage() {
   const [passwordConfirmation, setPasswordConfirmation] = useState('')
   const [isUpdatingAccount, setIsUpdatingAccount] = useState(false)
 
-  // Local Storage UI Config states
-  const [uiSettings, setUiSettings] = useState<LocalUiSettings>(() => {
-    const saved = localStorage.getItem(LOCAL_SETTINGS_KEY)
-    if (saved) {
-      try {
-        return { ...DEFAULT_UI_SETTINGS, ...JSON.parse(saved) }
-      } catch {
-        return DEFAULT_UI_SETTINGS
-      }
-    }
-    return DEFAULT_UI_SETTINGS
-  })
-
   // Synchronize from backend settings on load
   useEffect(() => {
     if (apiSettings) {
@@ -118,16 +62,6 @@ export function SettingsPage() {
       setNotifications(apiSettings.notifications)
     }
   }, [apiSettings])
-
-  // Save UI settings to local storage when changed
-  const updateUiSetting = <K extends keyof LocalUiSettings>(key: K, value: LocalUiSettings[K]) => {
-    setUiSettings((prev) => {
-      const updated = { ...prev, [key]: value }
-      localStorage.setItem(LOCAL_SETTINGS_KEY, JSON.stringify(updated))
-      return updated
-    })
-    showToast('Setting saved locally', 'success')
-  }
 
   // Auto Save API settings inline on selection change
 
@@ -262,7 +196,7 @@ export function SettingsPage() {
         <div className="grid md:grid-cols-12 gap-8">
           
           {/* Tab buttons sidebar (Col 4) */}
-          <nav className="md:col-span-4 flex flex-col gap-1.5 select-none">
+          <nav className="md:col-span-4 flex flex-row overflow-x-auto md:flex-col gap-1.5 scrollbar-none pb-2 md:pb-0 select-none whitespace-nowrap">
             {tabs.map((tab) => {
               const Icon = tab.icon
               const isActive = activeTab === tab.id
@@ -270,7 +204,7 @@ export function SettingsPage() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-semibold tracking-wide border transition-all duration-200 text-left ${
+                  className={`flex shrink-0 items-center gap-3 px-4 py-3 rounded-2xl text-xs font-semibold tracking-wide border transition-all duration-200 text-left cursor-pointer ${
                     isActive 
                       ? 'bg-indigo-500/10 text-indigo-300 border-indigo-500/30 font-bold shadow-md shadow-indigo-500/[0.03]' 
                       : 'border-transparent text-slate-400 hover:bg-white/5 hover:text-slate-200'
@@ -302,7 +236,7 @@ export function SettingsPage() {
                     {/* Theme Mode selection */}
                     <div className="flex flex-col gap-2">
                       <label className="text-xs font-bold text-slate-350 uppercase tracking-wider">Interface Color Theme</label>
-                      <div className="grid grid-cols-3 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                         {(['dark', 'light', 'system'] as const).map((t) => (
                           <button
                             key={t}
@@ -383,6 +317,77 @@ export function SettingsPage() {
                         <option value="es">Spanish (ES)</option>
                         <option value="fr">French (FR)</option>
                       </select>
+                    </div>
+
+                    {/* User Bubble Appearance */}
+                    <div className="flex flex-col gap-3 pt-3 border-t border-white/5">
+                      <label className="text-xs font-bold text-slate-350 uppercase tracking-wider">User Bubble Appearance</label>
+                      <div className="flex flex-wrap gap-2.5">
+                        {[
+                          { name: 'Default', value: 'default', color: 'bg-[#262626] border-white/10' },
+                          { name: 'Purple', value: '#4f46e5', color: 'bg-[#4f46e5] border-[#4f46e5]' },
+                          { name: 'Blue', value: '#2563eb', color: 'bg-[#2563eb] border-[#2563eb]' },
+                          { name: 'Green', value: '#16a34a', color: 'bg-[#16a34a] border-[#16a34a]' },
+                          { name: 'Orange', value: '#ea580c', color: 'bg-[#ea580c] border-[#ea580c]' },
+                          { name: 'Red', value: '#dc2626', color: 'bg-[#dc2626] border-[#dc2626]' },
+                          { name: 'Pink', value: '#db2777', color: 'bg-[#db2777] border-[#db2777]' },
+                          { name: 'Black', value: '#09090b', color: 'bg-[#09090b] border-white/15' },
+                          { name: 'Gray', value: '#4b5563', color: 'bg-[#4b5563] border-[#4b5563]' },
+                          { name: 'Cyan', value: '#0891b2', color: 'bg-[#0891b2] border-[#0891b2]' }
+                        ].map((item) => {
+                          const isSelected = (uiSettings.userBubbleColor || 'default') === item.value
+                          return (
+                            <button
+                              key={item.value}
+                              type="button"
+                              onClick={() => {
+                                updateUiSetting('userBubbleColor', item.value)
+                                showToast('Bubble color updated', 'success')
+                              }}
+                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition active:scale-95 cursor-pointer ${
+                                isSelected
+                                  ? 'bg-indigo-500/10 text-indigo-300 border-indigo-500/30 font-bold'
+                                  : 'bg-[#0F172A]/40 border-white/5 hover:bg-white/5 text-slate-400'
+                              }`}
+                            >
+                              <span className={`size-3 rounded-full ${item.color} border shrink-0 inline-block`} />
+                              <span>{item.name}</span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Custom Bubble Color */}
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pt-3 border-t border-white/5">
+                      <div>
+                        <label className="text-xs font-bold text-slate-350 uppercase tracking-wider block">Custom Bubble Color</label>
+                        <span className="text-[10px] text-slate-500">Pick any custom hex color for user chat bubbles</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="color"
+                          value={
+                            uiSettings.userBubbleColor && uiSettings.userBubbleColor !== 'default' && uiSettings.userBubbleColor.startsWith('#')
+                              ? uiSettings.userBubbleColor
+                              : '#4f46e5'
+                          }
+                          onChange={(e) => {
+                            updateUiSetting('userBubbleColor', e.target.value)
+                          }}
+                          className="size-9 bg-transparent border-0 cursor-pointer rounded-lg shrink-0 outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            updateUiSetting('userBubbleColor', 'default')
+                            showToast('Bubble color reset to default', 'success')
+                          }}
+                          className="px-3.5 py-2 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 text-xs font-bold rounded-lg transition active:scale-95 cursor-pointer"
+                        >
+                          Reset Bubble Color
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -550,7 +555,7 @@ export function SettingsPage() {
                     {/* Response Length select */}
                     <div className="flex flex-col gap-2">
                       <label className="text-xs font-bold text-slate-350 uppercase tracking-wider">AI Content Length</label>
-                      <div className="grid grid-cols-3 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                         {(['short', 'medium', 'long'] as const).map((len) => (
                           <button
                             key={len}
@@ -570,7 +575,7 @@ export function SettingsPage() {
                     {/* Response Detail Level select */}
                     <div className="flex flex-col gap-2">
                       <label className="text-xs font-bold text-slate-350 uppercase tracking-wider">Response Detail Level</label>
-                      <div className="grid grid-cols-3 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                         {(['basic', 'detailed', 'expert'] as const).map((det) => (
                           <button
                             key={det}
@@ -590,7 +595,7 @@ export function SettingsPage() {
                     {/* Creativity Level */}
                     <div className="flex flex-col gap-2">
                       <label className="text-xs font-bold text-slate-350 uppercase tracking-wider">Creativity Temperature</label>
-                      <div className="grid grid-cols-3 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                         {(['precise', 'balanced', 'creative'] as const).map((lvl) => (
                           <button
                             key={lvl}
@@ -799,7 +804,7 @@ export function SettingsPage() {
                       </div>
                     </div>
 
-                    <div className="flex justify-between items-center border-t border-white/5 pt-5">
+                    <div className="flex flex-col sm:flex-row gap-4 justify-between items-stretch sm:items-center border-t border-white/5 pt-5">
                       {/* Logout All Devices */}
                       <button
                         type="button"

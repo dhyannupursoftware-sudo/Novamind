@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use RuntimeException;
 use Throwable;
 
@@ -14,63 +15,182 @@ class GeminiService
 
     public function __construct()
     {
-        $this->apiKey = (string) config('services.gemini.key', '');
-        $this->model = (string) config('services.gemini.model', 'gemini-1.5-flash');
+        $this->apiKey = (string) config('services.gemini.api_key', '');
+        $this->model = (string) config('services.gemini.model', 'gemini-2.5-flash');
         $this->timeout = (int) config('services.gemini.timeout', 30);
     }
 
-    /**
-     * Send a single message (or prompt) to the Gemini API and return the response text.
-     *
-     * @param string $message The user's input message.
-     * @return string The generated AI response.
-     * @throws RuntimeException If the request fails or key is invalid.
-     */
     public function generateResponse(string $message): string
     {
         if (empty($this->apiKey)) {
-            throw new RuntimeException('Gemini API key is not configured. Please set GEMINI_API_KEY in your .env file.');
+            throw new RuntimeException('Gemini API key is not configured.');
         }
 
         $url = "https://generativelanguage.googleapis.com/v1beta/models/{$this->model}:generateContent?key={$this->apiKey}";
 
         try {
-            $response = Http::timeout($this->timeout)
+
+            $response = Http::withoutVerifying()
+                ->timeout($this->timeout)
                 ->acceptJson()
                 ->post($url, [
                     'contents' => [
                         [
                             'parts' => [
-                                ['text' => $message]
+                                [
+                                    'text' => $message
+                                ]
                             ]
                         ]
                     ]
                 ]);
-        } catch (Throwable $e) {
-            throw new RuntimeException("Network error while connecting to Gemini API: {$e->getMessage()}", 0, $e);
-        }
 
-        if ($response->status() === 400 || $response->status() === 403) {
-            $errorMsg = $response->json('error.message') ?? 'Invalid API key or unauthorized request.';
-            throw new RuntimeException("Gemini API authentication failed: {$errorMsg}");
+            Log::info('Gemini Response', [
+                'status' => $response->status(),
+                'body' => $response->json() ?? $response->body(),
+            ]);
+
+        } catch (Throwable $e) {
+
+            Log::error('Gemini Error', [
+                'message' => $e->getMessage()
+            ]);
+
+            throw new RuntimeException(
+                "Network error while connecting to Gemini API: ".$e->getMessage()
+            );
         }
 
         if (!$response->successful()) {
-            $errorMsg = $response->json('error.message') ?? $response->body();
-            throw new RuntimeException("Gemini API error (HTTP {$response->status()}): {$errorMsg}");
+
+            $error = $response->json('error.message') ?? $response->body();
+
+            throw new RuntimeException(
+                "Gemini API Error ({$response->status()}): ".$error
+            );
         }
 
-        $body = $response->json();
-        $text = data_get($body, 'candidates.0.content.parts.0.text');
+        $text = data_get(
+            $response->json(),
+            'candidates.0.content.parts.0.text'
+        );
 
-        if (empty($text)) {
-            $finishReason = data_get($body, 'candidates.0.finishReason');
-            if ($finishReason === 'SAFETY') {
-                throw new RuntimeException('Gemini response was blocked by safety settings.');
-            }
-            throw new RuntimeException('Gemini API returned an empty response.');
+        if (!$text) {
+            throw new RuntimeException('Gemini returned an empty response.');
         }
 
         return trim($text);
+    }
+
+        public function generateResponseFromHistory(array $historyMessages): string
+    {
+        if (empty($this->apiKey)) {
+            throw new RuntimeException('Gemini API key is not configured.');
+        }
+
+        $contents = [];
+
+        foreach ($historyMessages as $msg) {
+            $role = ($msg['role'] ?? 'user') === 'assistant'
+                ? 'model'
+                : 'user';
+
+            $content = trim((string)($msg['content'] ?? ''));
+            $parts = [];
+
+            if ($content !== '') {
+                $parts[] = ['text' => $content];
+            }
+
+            if (!empty($msg['attachments']) && is_array($msg['attachments'])) {
+                foreach ($msg['attachments'] as $att) {
+                    $mime = $att['type'] ?? '';
+                    $url = $att['url'] ?? '';
+                    if (str_starts_with($mime, 'image/') && !empty($url)) {
+                        // Check if file exists locally in public path or fetch data
+                        $relativePath = ltrim(parse_url($url, PHP_URL_PATH) ?? '', '/');
+                        $fullPath = public_path($relativePath);
+                        if (file_exists($fullPath)) {
+                            $base64 = base64_encode(file_get_contents($fullPath));
+                            $parts[] = [
+                                'inlineData' => [
+                                    'mimeType' => $mime,
+                                    'data' => $base64,
+                                ]
+                            ];
+                        }
+                    }
+                }
+            }
+
+            if (empty($parts)) {
+                continue;
+            }
+
+            $contents[] = [
+                'role' => $role,
+                'parts' => $parts,
+            ];
+        }
+
+        if (empty($contents)) {
+            throw new RuntimeException('No messages found.');
+        }
+
+        $url = "https://generativelanguage.googleapis.com/v1beta/models/{$this->model}:generateContent?key={$this->apiKey}";
+
+        try {
+            $response = Http::withoutVerifying()
+                ->timeout($this->timeout)
+                ->acceptJson()
+                ->post($url, [
+                    'contents' => $contents
+                ]);
+
+            Log::info('Gemini Chat History Response', [
+                'status' => $response->status(),
+                'body' => $response->json() ?? $response->body(),
+            ]);
+
+        } catch (Throwable $e) {
+
+            Log::error('Gemini Chat History Error', [
+                'message' => $e->getMessage()
+            ]);
+
+            throw new RuntimeException(
+                "Network error while connecting to Gemini API: ".$e->getMessage()
+            );
+        }
+
+        if (!$response->successful()) {
+
+            $error = $response->json('error.message') ?? $response->body();
+
+            throw new RuntimeException(
+                "Gemini API Error ({$response->status()}): ".$error
+            );
+        }
+
+        $text = data_get(
+            $response->json(),
+            'candidates.0.content.parts.0.text'
+        );
+
+        if (!$text) {
+            throw new RuntimeException('Gemini returned an empty response.');
+        }
+
+        return trim($text);
+    }
+
+    public function health(): array
+    {
+        return [
+            'reachable' => true,
+            'host' => 'https://generativelanguage.googleapis.com',
+            'configured_model' => $this->model,
+            'configured' => !empty($this->apiKey),
+        ];
     }
 }

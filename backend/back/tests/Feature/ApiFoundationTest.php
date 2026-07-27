@@ -47,17 +47,20 @@ class ApiFoundationTest extends TestCase
     public function test_authenticated_user_can_create_chat_and_message(): void
     {
         Http::fake([
-            'http://127.0.0.1:11434/api/tags' => Http::response([
-                'models' => [
-                    ['name' => 'qwen3:8b'],
-                ],
-            ]),
-            'http://127.0.0.1:11434/api/chat' => Http::response([
-                'message' => [
-                    'role' => 'assistant',
-                    'content' => '<think>Adding.</think>6',
-                ],
-            ]),
+            'https://generativelanguage.googleapis.com/*' => Http::response([
+                'candidates' => [
+                    [
+                        'content' => [
+                            'parts' => [
+                                ['text' => '6']
+                            ],
+                            'role' => 'model'
+                        ],
+                        'finishReason' => 'STOP',
+                        'index' => 0
+                    ]
+                ]
+            ], 200),
         ]);
 
         $user = User::factory()->create();
@@ -88,6 +91,38 @@ class ApiFoundationTest extends TestCase
         $this->assertDatabaseHas('messages', [
             'role' => 'assistant',
             'content' => '6',
+        ]);
+    }
+
+    public function test_authenticated_user_can_persist_theme_preferences(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $response = $this->patchJson('/api/settings', [
+            'user_bubble_color' => '#245B78',
+            'primary_color' => '#22C55E',
+            'font_size' => 17,
+            'font_family' => 'System',
+            'border_radius' => 14,
+            'bubble_opacity' => 0.82,
+            'ui_preferences' => [
+                'autoScroll' => true,
+                'showTypingIndicator' => true,
+            ],
+        ]);
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('data.user_bubble_color', '#245B78')
+            ->assertJsonPath('data.primary_color', '#22C55E')
+            ->assertJsonPath('data.font_size', 17)
+            ->assertJsonPath('data.ui_preferences.autoScroll', true);
+
+        $this->assertDatabaseHas('settings', [
+            'user_id' => $user->id,
+            'primary_color' => '#22C55E',
+            'font_family' => 'System',
         ]);
     }
 }

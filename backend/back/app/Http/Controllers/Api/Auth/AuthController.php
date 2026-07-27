@@ -142,6 +142,19 @@ class AuthController extends Controller
         ]);
     }
 
+    public function checkEmail(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'email' => ['required', 'email:rfc'],
+        ]);
+
+        $exists = User::where('email', $data['email'])->exists();
+
+        return response()->json([
+            'exists' => $exists,
+        ]);
+    }
+
     private function tokenResponse(User $user, bool $remember, int $status = 200): JsonResponse
     {
         $expiresAt = now()->addDays($remember ? 30 : 1);

@@ -55,14 +55,14 @@ export function AuthLayout({ children, footer, title }: AuthLayoutProps) {
             <p className="mt-0.5 text-[10px] text-slate-500">Relational Sync</p>
           </div>
           <div className="rounded-xl border border-white/5 bg-white/[0.01] p-3 shadow-lg">
-            <p className="font-bold text-indigo-400">Ollama local</p>
-            <p className="mt-0.5 text-[10px] text-slate-500">Private AI runs</p>
+            <p className="font-bold text-indigo-400">Gemini Cloud</p>
+            <p className="mt-0.5 text-[10px] text-slate-500">Google Gemini API</p>
           </div>
         </div>
       </section>
 
       {/* RIGHT SIDE FORM VIEW */}
-      <section className="flex min-h-screen items-center justify-center px-4 py-8 sm:px-6 relative z-10">
+      <section className="flex min-h-screen items-center justify-center px-4 py-8 sm:px-6 relative z-10 bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.04)_0%,transparent_65%)]">
         <div className="w-full max-w-md">
           
           {/* Mobile Back & Brand Row */}
@@ -78,14 +78,14 @@ export function AuthLayout({ children, footer, title }: AuthLayoutProps) {
           </div>
 
           {/* Card Wrapper */}
-          <div className="rounded-2xl border border-white/5 bg-[#0d0d0d] p-6 sm:p-8 shadow-2xl relative overflow-hidden">
+          <div className="rounded-[24px] border border-white/[0.06] bg-[#121214]/65 backdrop-blur-2xl p-8 sm:p-10 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)] relative overflow-hidden">
 
             <h2 className="text-xl font-extrabold text-white tracking-tight">{title}</h2>
             <div className="mt-6">{children}</div>
           </div>
 
           {/* Form footer link */}
-          <div className="mt-5 text-center text-xs text-slate-400 font-semibold tracking-wide select-none">
+          <div className="mt-5 text-center text-xs text-slate-450 text-slate-400 font-semibold tracking-wide select-none">
             {footer}
           </div>
         </div>

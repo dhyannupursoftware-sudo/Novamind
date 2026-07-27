@@ -1,0 +1,11 @@
+node_modules/
+/node_modules
+/package.json
+/package-lock.json
+frontend/front/node_modules/
+frontend/front/dist/
+backend/back/vendor/
+backend/back/.env
+.env
+*.log
+.DS_Store

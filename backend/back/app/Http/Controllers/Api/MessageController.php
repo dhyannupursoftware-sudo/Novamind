@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Message\StoreMessageRequest;
 use App\Http\Resources\MessageResource;
 use App\Models\Chat;
-use App\Services\OllamaService;
+use App\Services\GeminiService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -14,7 +14,7 @@ use Throwable;
 
 class MessageController extends Controller
 {
-    public function store(StoreMessageRequest $request, Chat $chat, OllamaService $ollama): \Illuminate\Http\JsonResponse
+    public function store(StoreMessageRequest $request, Chat $chat, GeminiService $gemini): \Illuminate\Http\JsonResponse
     {
         abort_unless($chat->user_id === $request->user()->id, 404);
 
@@ -58,16 +58,16 @@ class MessageController extends Controller
         ]);
 
         try {
-            $aiContent = $ollama->generateResponse($history, $userSettings->model);
+            $aiContent = $gemini->generateResponseFromHistory($history);
         } catch (Throwable $throwable) {
-            Log::error('Ollama generation failed.', [
+            Log::error('Gemini generation failed.', [
                 'chat_id' => $chat->id,
                 'user_id' => $request->user()->id,
                 'error' => $throwable->getMessage(),
             ]);
 
             return response()->json([
-                'message' => 'AI service unavailable. Ensure Ollama is running and qwen3:8b is installed.',
+                'message' => 'Gemini AI service error: ' . $throwable->getMessage(),
                 'error' => $throwable->getMessage(),
                 'data' => [
                     'user' => new MessageResource($userMessage),

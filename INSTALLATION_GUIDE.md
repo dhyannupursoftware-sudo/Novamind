@@ -80,25 +80,11 @@ npm run build
 
 ---
 
-## 5. Local Ollama & Qwen3:8b AI Engine Setup
-To run local LLM processing privately without expensive API keys:
+## 5. Google Gemini Cloud AI Setup
+To run model tasks using the cloud-based Google Gemini API:
 
-```bash
-# 1. Download and run Ollama Installer for Windows
-# URL: https://ollama.com/download
-
-# 2. Pull the Qwen 8B model to local storage
-ollama pull qwen:8b
-
-# 3. Verify pulled models list
-ollama list
-
-# 4. Start the Ollama local AI server
-ollama serve
-
-# 5. Connect and test model directly via CLI
-ollama run qwen:8b
-```
+1. Obtain a **Google AI Studio (Gemini) API Key** from the Google AI Studio console.
+2. Store your key in the backend `.env` file as shown below.
 
 ---
 
@@ -110,11 +96,12 @@ Ensure `.env` values are set as follows to link frontend and backend:
 APP_URL=http://localhost:8000
 FRONTEND_URL=http://localhost:5173
 DB_DATABASE=novamind_ai
-DB_USERNAME=
+DB_USERNAME=root
 DB_PASSWORD=
 
-# Ollama local port mapping
-OLLAMA_HOST=http://localhost:11434
+# Gemini API configuration
+GEMINI_API_KEY=your_gemini_api_key_here
+GEMINI_MODEL=gemini-1.5-flash
 ```
 
 ### Frontend Configuration (`frontend/front/.env`):

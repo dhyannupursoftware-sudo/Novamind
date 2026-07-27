@@ -32,51 +32,6 @@ interface ModalProps {
   onClose: () => void
 }
 
-// Local storage key for UI config settings
-const LOCAL_SETTINGS_KEY = 'novamind_ui_settings'
-
-interface LocalUiSettings {
-  chatBubbleStyle: 'modern-pill' | 'compact-classic' | 'glassmorphism'
-  fontSize: 'small' | 'medium' | 'large'
-  autoScroll: boolean
-  showTypingIndicator: boolean
-  showTimestamps: boolean
-  chatViewMode: 'compact' | 'comfortable'
-  messageAnimations: boolean
-  streamingResponse: boolean
-  responseLength: 'short' | 'medium' | 'long'
-  detailLevel?: 'basic' | 'detailed' | 'expert'
-  creativityLevel: 'precise' | 'balanced' | 'creative'
-  codeFormatting: boolean
-  markdownRendering: boolean
-  fullscreenDefault: boolean
-  autoSaveDrafts: boolean
-  autoCopyCode: boolean
-  performanceMode: boolean
-  developerMode: boolean
-}
-
-const DEFAULT_UI_SETTINGS: LocalUiSettings = {
-  chatBubbleStyle: 'glassmorphism',
-  fontSize: 'medium',
-  autoScroll: true,
-  showTypingIndicator: true,
-  showTimestamps: true,
-  chatViewMode: 'comfortable',
-  messageAnimations: true,
-  streamingResponse: true,
-  responseLength: 'long',
-  detailLevel: 'expert',
-  creativityLevel: 'balanced',
-  codeFormatting: true,
-  markdownRendering: true,
-  fullscreenDefault: false,
-  autoSaveDrafts: true,
-  autoCopyCode: false,
-  performanceMode: true,
-  developerMode: false
-}
-
 export function ProfileModal({ isOpen, onClose }: ModalProps) {
   const { user, updateProfile } = useAuth()
   const { chats, uploadFile, settings } = useChat()
@@ -422,7 +377,9 @@ export function SettingsModal({ isOpen, onClose }: ModalProps) {
     chats,
     selectedChat,
     setMessages,
-    deleteChat
+    deleteChat,
+    uiSettings,
+    updateUiSetting
   } = useChat()
   const { showToast } = useToast()
 
@@ -443,19 +400,6 @@ export function SettingsModal({ isOpen, onClose }: ModalProps) {
   const [passwordConfirmation, setPasswordConfirmation] = useState('')
   const [isUpdatingAccount, setIsUpdatingAccount] = useState(false)
 
-  // Local Storage UI Config states
-  const [uiSettings, setUiSettings] = useState<LocalUiSettings>(() => {
-    const saved = localStorage.getItem(LOCAL_SETTINGS_KEY)
-    if (saved) {
-      try {
-        return { ...DEFAULT_UI_SETTINGS, ...JSON.parse(saved) }
-      } catch {
-        return DEFAULT_UI_SETTINGS
-      }
-    }
-    return DEFAULT_UI_SETTINGS
-  })
-
   // Synchronize from backend settings on load
   useEffect(() => {
     if (apiSettings) {
@@ -465,16 +409,6 @@ export function SettingsModal({ isOpen, onClose }: ModalProps) {
       setNotifications(apiSettings.notifications)
     }
   }, [apiSettings])
-
-  // Save UI settings to local storage when changed
-  const updateUiSetting = <K extends keyof LocalUiSettings>(key: K, value: LocalUiSettings[K]) => {
-    setUiSettings((prev) => {
-      const updated = { ...prev, [key]: value }
-      localStorage.setItem(LOCAL_SETTINGS_KEY, JSON.stringify(updated))
-      return updated
-    })
-    showToast('Setting saved locally', 'success')
-  }
 
   // Save Account Profile Settings
   const handleSaveAccount = async (e: React.FormEvent) => {
@@ -619,7 +553,7 @@ export function SettingsModal({ isOpen, onClose }: ModalProps) {
             <div className="grid md:grid-cols-12 flex-1 min-h-0 overflow-y-auto md:overflow-hidden">
               
               {/* Tabs list (Col 4) */}
-              <nav className="md:col-span-4 bg-white/[0.01] border-r border-white/5 p-4 flex flex-col gap-1.5 select-none overflow-y-auto md:h-full shrink-0">
+              <nav className="md:col-span-4 bg-white/[0.01] border-b md:border-b-0 md:border-r border-white/5 p-4 flex flex-row overflow-x-auto md:flex-col gap-1.5 select-none overflow-y-auto md:h-full shrink-0 scrollbar-none whitespace-nowrap">
                 {tabs.map((tab) => {
                   const Icon = tab.icon
                   const isActive = activeTab === tab.id
@@ -627,7 +561,7 @@ export function SettingsModal({ isOpen, onClose }: ModalProps) {
                     <button
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id)}
-                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide border transition-all duration-150 text-left cursor-pointer ${
+                      className={`flex shrink-0 items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide border transition-all duration-150 text-left cursor-pointer ${
                         isActive 
                           ? 'bg-indigo-500/10 text-indigo-300 border-indigo-500/20 font-bold' 
                           : 'border-transparent text-slate-450 text-slate-400 hover:bg-white/5 hover:text-slate-200'
@@ -655,7 +589,7 @@ export function SettingsModal({ isOpen, onClose }: ModalProps) {
                       {/* Theme selection buttons */}
                       <div className="space-y-2">
                         <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Interface Theme</label>
-                        <div className="grid grid-cols-3 gap-2.5">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                           {(['dark', 'light', 'system'] as const).map((t) => (
                             <button
                               key={t}
@@ -735,6 +669,77 @@ export function SettingsModal({ isOpen, onClose }: ModalProps) {
                           <option value="es" style={{ backgroundColor: '#212121', color: '#ececec' }}>Spanish (ES)</option>
                           <option value="fr" style={{ backgroundColor: '#212121', color: '#ececec' }}>French (FR)</option>
                         </select>
+                      </div>
+
+                      {/* User Bubble Appearance */}
+                      <div className="space-y-2 pt-3 border-t border-white/5">
+                        <label className="text-xs font-bold uppercase tracking-wider text-slate-400">User Bubble Appearance</label>
+                        <div className="flex flex-wrap gap-2">
+                          {[
+                            { name: 'Default', value: 'default', color: 'bg-[#262626] border-white/10' },
+                            { name: 'Purple', value: '#4f46e5', color: 'bg-[#4f46e5] border-[#4f46e5]' },
+                            { name: 'Blue', value: '#2563eb', color: 'bg-[#2563eb] border-[#2563eb]' },
+                            { name: 'Green', value: '#16a34a', color: 'bg-[#16a34a] border-[#16a34a]' },
+                            { name: 'Orange', value: '#ea580c', color: 'bg-[#ea580c] border-[#ea580c]' },
+                            { name: 'Red', value: '#dc2626', color: 'bg-[#dc2626] border-[#dc2626]' },
+                            { name: 'Pink', value: '#db2777', color: 'bg-[#db2777] border-[#db2777]' },
+                            { name: 'Black', value: '#09090b', color: 'bg-[#09090b] border-white/15' },
+                            { name: 'Gray', value: '#4b5563', color: 'bg-[#4b5563] border-[#4b5563]' },
+                            { name: 'Cyan', value: '#0891b2', color: 'bg-[#0891b2] border-[#0891b2]' }
+                          ].map((item) => {
+                            const isSelected = (uiSettings.userBubbleColor || 'default') === item.value
+                            return (
+                              <button
+                                key={item.value}
+                                type="button"
+                                onClick={() => {
+                                  updateUiSetting('userBubbleColor', item.value)
+                                  showToast('Bubble color updated', 'success')
+                                }}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition active:scale-95 cursor-pointer ${
+                                  isSelected
+                                    ? 'bg-indigo-500/10 text-indigo-300 border-indigo-500/20 font-bold'
+                                    : 'bg-white/[0.01] border-white/5 hover:bg-white/5 text-slate-400'
+                                }`}
+                              >
+                                <span className={`size-3 rounded-full ${item.color} border shrink-0 inline-block`} />
+                                <span>{item.name}</span>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Custom Bubble Color */}
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pt-3 border-t border-white/5">
+                        <div>
+                          <label className="text-xs font-bold uppercase tracking-wider text-slate-400 block">Custom Bubble Color</label>
+                          <span className="text-[10px] text-slate-500">Pick any custom hex color for user chat bubbles</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="color"
+                            value={
+                              uiSettings.userBubbleColor && uiSettings.userBubbleColor !== 'default' && uiSettings.userBubbleColor.startsWith('#')
+                                ? uiSettings.userBubbleColor
+                                : '#4f46e5'
+                            }
+                            onChange={(e) => {
+                              updateUiSetting('userBubbleColor', e.target.value)
+                            }}
+                            className="size-9 bg-transparent border-0 cursor-pointer rounded-lg shrink-0 outline-none"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              updateUiSetting('userBubbleColor', 'default')
+                              showToast('Bubble color reset to default', 'success')
+                            }}
+                            className="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-slate-350 hover:text-white border border-white/10 text-xs font-bold rounded-lg transition active:scale-95 cursor-pointer"
+                          >
+                            Reset Bubble Color
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -884,16 +889,15 @@ export function SettingsModal({ isOpen, onClose }: ModalProps) {
                           }}
                           className="input-glass min-h-10 w-full rounded-xl px-3 text-xs focus:outline-none bg-[#212121] text-white border-white/5"
                         >
-                          <option value="nova-pro" style={{ backgroundColor: '#212121', color: '#ececec' }}>NovaMind Ultra Pro (Max Context)</option>
-                          <option value="nova-lite" style={{ backgroundColor: '#212121', color: '#ececec' }}>NovaMind Lite (Fast Speed)</option>
-                          <option value="nova-coder" style={{ backgroundColor: '#212121', color: '#ececec' }}>NovaMind Coder (Code & Logic)</option>
-                          <option value="gemini-1.5-flash" style={{ backgroundColor: '#212121', color: '#ececec' }}>Gemini 1.5 Flash (Google AI Studio)</option>
+                          <option value="gemini-1.5-flash" style={{ backgroundColor: '#212121', color: '#ececec' }}>Gemini 1.5 Flash (Speed & Reasoning)</option>
+                          <option value="gemini-1.5-pro" style={{ backgroundColor: '#212121', color: '#ececec' }}>Gemini 1.5 Pro (Deep Analytics)</option>
+                          <option value="gemini-2.0-flash" style={{ backgroundColor: '#212121', color: '#ececec' }}>Gemini 2.0 Flash (Next Gen Fast)</option>
                         </select>
                       </div>
 
                       <div className="space-y-2">
                         <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Response Word Length</label>
-                        <div className="grid grid-cols-3 gap-2.5">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                           {(['short', 'medium', 'long'] as const).map((len) => (
                             <button
                               key={len}
@@ -912,7 +916,7 @@ export function SettingsModal({ isOpen, onClose }: ModalProps) {
 
                       <div className="space-y-2">
                         <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Response Detail Level</label>
-                        <div className="grid grid-cols-3 gap-2.5">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                           {(['basic', 'detailed', 'expert'] as const).map((det) => (
                             <button
                               key={det}
@@ -931,7 +935,7 @@ export function SettingsModal({ isOpen, onClose }: ModalProps) {
 
                       <div className="space-y-2">
                         <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Creativity Temperature</label>
-                        <div className="grid grid-cols-3 gap-2.5">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                           {(['precise', 'balanced', 'creative'] as const).map((lvl) => (
                             <button
                               key={lvl}
@@ -1132,7 +1136,7 @@ export function SettingsModal({ isOpen, onClose }: ModalProps) {
                         </div>
                       </div>
 
-                      <div className="flex justify-between items-center border-t border-white/5 pt-4">
+                      <div className="flex flex-col sm:flex-row gap-3.5 justify-between items-stretch sm:items-center border-t border-white/5 pt-4">
                         {/* Session logout */}
                         <button
                           type="button"

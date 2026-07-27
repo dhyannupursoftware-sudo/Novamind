@@ -11,8 +11,53 @@ import {
 } from 'react'
 import { api, errorMessage } from '../lib/api'
 import type { Chat, Message, PaginatedResponse, ApiResource, UserSettings } from '../types/api'
+import { applyThemeSettings, THEME_DEFAULTS } from '../lib/theme'
 import { useToast } from './ToastContext'
 import { useAuth } from './useAuth'
+
+export interface LocalUiSettings {
+  chatBubbleStyle: 'modern-pill' | 'compact-classic' | 'glassmorphism'
+  fontSize: 'small' | 'medium' | 'large'
+  autoScroll: boolean
+  showTypingIndicator: boolean
+  showTimestamps: boolean
+  chatViewMode: 'compact' | 'comfortable'
+  messageAnimations: boolean
+  streamingResponse: boolean
+  responseLength: 'short' | 'medium' | 'long'
+  detailLevel?: 'basic' | 'detailed' | 'expert'
+  creativityLevel: 'precise' | 'balanced' | 'creative'
+  codeFormatting: boolean
+  markdownRendering: boolean
+  fullscreenDefault: boolean
+  autoSaveDrafts: boolean
+  autoCopyCode: boolean
+  performanceMode: boolean
+  developerMode: boolean
+  userBubbleColor?: string
+}
+
+export const DEFAULT_UI_SETTINGS: LocalUiSettings = {
+  chatBubbleStyle: 'glassmorphism',
+  fontSize: 'medium',
+  autoScroll: true,
+  showTypingIndicator: true,
+  showTimestamps: true,
+  chatViewMode: 'comfortable',
+  messageAnimations: true,
+  streamingResponse: true,
+  responseLength: 'long',
+  detailLevel: 'expert',
+  creativityLevel: 'balanced',
+  codeFormatting: true,
+  markdownRendering: true,
+  fullscreenDefault: false,
+  autoSaveDrafts: true,
+  autoCopyCode: false,
+  performanceMode: true,
+  developerMode: false,
+  userBubbleColor: 'default'
+}
 
 // Extend Chat interface to support saved attribute
 export interface ExtendedChat extends Chat {
@@ -90,6 +135,7 @@ interface ChatContextValue {
   createChat: (title?: string) => Promise<ExtendedChat>
   renameChat: (chatId: number, title: string) => Promise<void>
   deleteChat: (chatId: number) => Promise<void>
+  duplicateChat: (chat: ExtendedChat) => Promise<void>
   togglePinChat: (chat: ExtendedChat) => Promise<void>
   toggleSaveChat: (chat: ExtendedChat) => Promise<void>
   sendMessage: (content: string, attachments?: Attachment[]) => Promise<void>
@@ -99,6 +145,10 @@ interface ChatContextValue {
   settings: UserSettings
   updateSettings: (newSettings: Partial<UserSettings>) => Promise<void>
   isSavingSettings: boolean
+
+  // Local UI Settings
+  uiSettings: LocalUiSettings
+  updateUiSetting: <K extends keyof LocalUiSettings>(key: K, value: LocalUiSettings[K]) => void
 
   // File Upload Action
   uploadFile: (file: File) => Promise<Attachment>
@@ -121,8 +171,10 @@ function defaultSettings(userId = 0): UserSettings {
     user_id: userId,
     theme: 'dark',
     language: 'en',
-    model: 'nova-pro',
+    model: 'gemini-1.5-flash',
     notifications: true,
+    ...THEME_DEFAULTS,
+    ui_preferences: {},
     updated_at: null,
   }
 }
@@ -145,6 +197,27 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const [sortBy, setSortBy] = useState<'date' | 'name'>('date')
   const [filterSavedOnly, setFilterSavedOnly] = useState(false)
   
+  // UI Settings state
+  const [uiSettings, setUiSettings] = useState<LocalUiSettings>(() => {
+    const saved = localStorage.getItem('novamind_ui_settings')
+    if (saved) {
+      try {
+        return { ...DEFAULT_UI_SETTINGS, ...JSON.parse(saved) }
+      } catch {
+        return DEFAULT_UI_SETTINGS
+      }
+    }
+    return DEFAULT_UI_SETTINGS
+  })
+
+  const updateUiSetting = useCallback(<K extends keyof LocalUiSettings>(key: K, value: LocalUiSettings[K]) => {
+    setUiSettings((prev) => {
+      const updated = { ...prev, [key]: value }
+      localStorage.setItem('novamind_ui_settings', JSON.stringify(updated))
+      return updated
+    })
+  }, [])
+
   // Modals Visibility
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
@@ -159,11 +232,19 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      setSettings(user?.settings ?? defaultSettings(user?.id))
+      setSettings({
+        ...defaultSettings(user?.id),
+        ...(user?.settings ?? {}),
+        ui_preferences: user?.settings?.ui_preferences ?? {},
+      })
     }, 0)
 
     return () => window.clearTimeout(timer)
   }, [user])
+
+  useEffect(() => {
+    applyThemeSettings(settings)
+  }, [settings])
 
   // Initialize Speech Recognition
   useEffect(() => {
@@ -282,6 +363,33 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     }
   }, [selectedChat, showToast])
 
+  // Duplicate a chat
+  const duplicateChat = useCallback(async (chat: ExtendedChat) => {
+    try {
+      // 1. Fetch full chat messages
+      const { data } = await api.get<ApiResource<ExtendedChat>>(`/chats/${chat.id}`)
+      const fullChat = data.data
+      const userMessages = ((fullChat.messages ?? []) as ExtendedMessage[]).filter(m => m.role === 'user')
+
+      // 2. Create target copy chat
+      const newChat = await createChat(`Copy of ${chat.title}`)
+
+      // 3. Sequential messages restore
+      for (const msg of userMessages) {
+        await api.post(`/chats/${newChat.id}/messages`, {
+          role: 'user',
+          content: msg.content,
+          attachments: msg.attachments
+        })
+      }
+      
+      await loadChats()
+      showToast('Conversation duplicated successfully', 'success')
+    } catch (err) {
+      showToast('Failed to duplicate chat', 'error')
+    }
+  }, [createChat, loadChats, showToast])
+
   // Toggle pin chat
   const togglePinChat = useCallback(async (chat: ExtendedChat) => {
     try {
@@ -348,73 +456,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     // Instantly append user message
     setMessages((prev) => [...prev, tempUserMsg])
 
-    if (settings.model === 'gemini-1.5-flash') {
-      try {
-        const { data } = await api.post<{ response: string }>('/gemini/chat', {
-          message: content.trim(),
-        })
 
-        const assistantMsgId = -Date.now() - 1
-        const assistantMsg: ExtendedMessage = {
-          id: assistantMsgId,
-          chat_id: selectedChat?.id || 0,
-          role: 'assistant',
-          content: data.response,
-          attachments: null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        }
-
-        // Add empty assistant placeholder first
-        const placeholderAssistant: ExtendedMessage = {
-          ...assistantMsg,
-          content: '',
-        }
-
-        setMessages((prev) => {
-          const filtered = prev.filter((m) => m.id !== tempUserMsgId)
-          const userMsg: ExtendedMessage = {
-            ...tempUserMsg,
-            id: Date.now(),
-          }
-          return [...filtered, userMsg, placeholderAssistant]
-        })
-
-        setIsThinking(false)
-
-        // Stream the assistant response word-by-word
-        const words = data.response.split(/(\s+)/)
-        let currentText = ''
-        let wordIndex = 0
-
-        await new Promise<void>((resolve) => {
-          const interval = setInterval(() => {
-            if (wordIndex < words.length) {
-              currentText += words[wordIndex]
-              wordIndex++
-              if (words.length > 80 && wordIndex < words.length && Math.random() > 0.4) {
-                currentText += words[wordIndex]
-                wordIndex++
-              }
-              setMessages((prev) =>
-                prev.map((m) => (m.id === assistantMsgId ? { ...m, content: currentText } : m))
-              )
-            } else {
-              clearInterval(interval)
-              resolve()
-            }
-          }, 10)
-        })
-
-      } catch (err) {
-        showToast(errorMessage(err), 'error')
-        setMessages((prev) => prev.filter((m) => m.id !== tempUserMsgId))
-        setIsThinking(false)
-      } finally {
-        setIsSending(false)
-      }
-      return
-    }
 
     try {
       let activeChat = selectedChat
@@ -519,23 +561,26 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
   // Save/Update settings
   const updateSettings = useCallback(async (newSettings: Partial<UserSettings>) => {
+    const previousSettings = settings
+    const optimisticSettings = {
+      ...settings,
+      ...newSettings,
+      ui_preferences: newSettings.ui_preferences ?? settings.ui_preferences,
+    }
+
+    setSettings(optimisticSettings)
     setIsSavingSettings(true)
     try {
-      const payload = {
-        theme: newSettings.theme ?? settings.theme,
-        language: newSettings.language ?? settings.language,
-        model: newSettings.model ?? settings.model,
-        notifications: newSettings.notifications ?? settings.notifications,
-      }
-      const { data } = await api.patch<ApiResource<UserSettings>>('/settings', payload)
-      setSettings(data.data)
+      const { data } = await api.patch<ApiResource<UserSettings>>('/settings', newSettings)
+      setSettings({ ...defaultSettings(user?.id), ...data.data })
       showToast('Settings saved successfully', 'success')
     } catch (err) {
+      setSettings(previousSettings)
       showToast(errorMessage(err), 'error')
     } finally {
       setIsSavingSettings(false)
     }
-  }, [settings, showToast])
+  }, [settings, showToast, user?.id])
 
   // Upload file API integration
   const uploadFile = useCallback(async (file: File): Promise<Attachment> => {
@@ -655,6 +700,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       createChat,
       renameChat,
       deleteChat,
+      duplicateChat,
       togglePinChat,
       toggleSaveChat,
       sendMessage,
@@ -662,6 +708,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       settings,
       updateSettings,
       isSavingSettings,
+      uiSettings,
+      updateUiSetting,
       uploadFile,
       isListening,
       toggleSpeechRecognition,
@@ -687,6 +735,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       createChat,
       renameChat,
       deleteChat,
+      duplicateChat,
       togglePinChat,
       toggleSaveChat,
       sendMessage,
@@ -694,6 +743,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       settings,
       updateSettings,
       isSavingSettings,
+      uiSettings,
+      updateUiSetting,
       uploadFile,
       isListening,
       toggleSpeechRecognition,
