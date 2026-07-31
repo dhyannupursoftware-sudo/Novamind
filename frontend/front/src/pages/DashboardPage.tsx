@@ -43,8 +43,7 @@ import {
   ZoomIn,
   ZoomOut,
   Play,
-  Calendar,
-  Puzzle
+  SquarePen
 } from 'lucide-react'
 import { parseFileContent } from '../lib/fileParser'
 import { MarkdownRenderer } from '../components/ui/MarkdownRenderer'
@@ -57,6 +56,8 @@ import { PromptLibraryModal } from '../components/PromptLibraryModal'
 import { CommandPalette } from '../components/CommandPalette'
 import { exportChatToMarkdown } from '../lib/ChatExportService'
 import { QuestionNavShortcut } from '../components/QuestionNavShortcut'
+import { ModelSelector, AI_MODELS, type AIModel } from '../components/ModelSelector'
+import { ArtifactsDrawer } from '../components/ArtifactsDrawer'
 
 export function DashboardPage() {
   const { logout, user } = useAuth()
@@ -112,15 +113,26 @@ export function DashboardPage() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isPromptLibraryOpen, setIsPromptLibraryOpen] = useState(false)
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false)
+  const [selectedModel, setSelectedModel] = useState<AIModel>(AI_MODELS[0])
+  const [artifactsDrawerState, setArtifactsDrawerState] = useState<{
+    isOpen: boolean
+    code: string
+    language: string
+  }>({
+    isOpen: false,
+    code: '',
+    language: '',
+  })
   const [codePreviewState, setCodePreviewState] = useState<{ isOpen: boolean; code: string; language: string }>({
     isOpen: false,
     code: '',
     language: '',
   })
 
-  // Global Code Preview opener
+  // Global Code Preview opener & Artifacts Drawer opener
   useEffect(() => {
-    ;(window as any).__openCodePreview = (code: string, language: string) => {
+    ; (window as any).__openCodePreview = (code: string, language: string) => {
+      setArtifactsDrawerState({ isOpen: true, code, language })
       setCodePreviewState({ isOpen: true, code, language })
     }
   }, [])
@@ -198,15 +210,41 @@ export function DashboardPage() {
   const [dislikes, setDislikes] = useState<Record<number, boolean>>({})
   const [openDownloadId, setOpenDownloadId] = useState<number | null>(null)
 
-  // Listen for ESC key to exit fullscreen
+  // Fullscreen Handler & Sync
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {})
+      setIsFullscreen(true)
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {})
+      }
+      setIsFullscreen(false)
+    }
+  }
+
   useEffect(() => {
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement) {
+        setIsFullscreen(false)
+      } else {
+        setIsFullscreen(true)
+      }
+    }
     const handleKeyDown = (e: globalThis.KeyboardEvent) => {
       if (e.key === 'Escape') {
+        if (document.fullscreenElement && document.exitFullscreen) {
+          document.exitFullscreen().catch(() => {})
+        }
         setIsFullscreen(false)
       }
     }
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
     window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange)
+      window.removeEventListener('keydown', handleKeyDown)
+    }
   }, [])
 
   const toggleLike = (msgId: number) => {
@@ -524,20 +562,7 @@ export function DashboardPage() {
     }).format(new Date(value))
   }
 
-  const formatChatTime = (value: string | null): string => {
-    if (!value) return ''
-    const date = new Date(value)
-    const now = new Date()
-    const diff = now.getTime() - date.getTime()
-    const oneDay = 24 * 60 * 60 * 1000
-    if (diff < oneDay && date.getDate() === now.getDate()) {
-      return new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(date)
-    }
-    if (diff < 2 * oneDay) {
-      return 'Yesterday'
-    }
-    return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(date)
-  }
+
 
   // Keyboard Shortcuts Bindings
   useEffect(() => {
@@ -627,9 +652,9 @@ export function DashboardPage() {
     return (
       <div
         key={chat.id}
-        className={`group relative flex items-center justify-between rounded-lg px-3 py-2.5 transition duration-150 ${isSelected
-            ? 'bg-white/10 text-white font-medium shadow-sm'
-            : 'text-slate-350 hover:bg-white/5 hover:text-white'
+        className={`group relative flex items-center justify-between rounded-xl px-2.5 py-2 transition duration-150 cursor-pointer ${isSelected
+          ? 'bg-[#212121] text-white font-medium shadow-sm'
+          : 'text-[#ececec] hover:bg-[#212121]/60 hover:text-white'
           }`}
       >
         {isRenaming ? (
@@ -638,7 +663,7 @@ export function DashboardPage() {
               type="text"
               value={renameValue}
               onChange={(e) => setRenameValue(e.target.value)}
-              className="w-full rounded bg-slate-950 px-2 py-0.5 text-xs text-white border border-white/10 focus:border-indigo-500 focus:outline-none"
+              className="w-full rounded-lg bg-[#0d0d0d] px-2.5 py-1 text-sm text-white border border-white/15 focus:border-indigo-500 focus:outline-none"
               autoFocus
               onKeyDown={(e) => {
                 if (e.key === 'Enter') void saveRename(chat.id)
@@ -647,15 +672,15 @@ export function DashboardPage() {
             />
             <button
               onClick={() => void saveRename(chat.id)}
-              className="rounded bg-indigo-505 bg-indigo-500 p-0.5 text-white transition hover:bg-indigo-600"
+              className="rounded bg-indigo-500 p-1 text-white transition hover:bg-indigo-600 shrink-0"
             >
-              <Check size={11} />
+              <Check size={12} />
             </button>
             <button
               onClick={() => setRenamingId(null)}
-              className="rounded bg-white/10 p-0.5 text-white transition hover:bg-white/20"
+              className="rounded bg-white/10 p-1 text-white transition hover:bg-white/20 shrink-0"
             >
-              <X size={11} />
+              <X size={12} />
             </button>
           </div>
         ) : (
@@ -666,20 +691,17 @@ export function DashboardPage() {
                 void selectChat(chat)
                 setSidebarOpen(false)
               }}
-              className={`flex flex-1 items-center gap-2.5 text-left min-w-0 animate-none rounded-lg ${isSelected ? 'text-white font-medium' : 'text-slate-350 hover:text-white'
+              className={`flex flex-1 items-center gap-2.5 text-left min-w-0 animate-none ${isSelected ? 'text-white font-medium' : 'text-[#ececec] hover:text-white'
                 }`}
             >
               <MessageSquare
                 className={`shrink-0 ${isSelected ? 'text-white' : 'text-slate-400 group-hover:text-white'}`}
-                size={14}
+                size={16}
               />
               {!sidebarCollapsed && (
-                <div className="min-w-0 flex-1 flex items-center justify-between gap-1.5">
-                  <span className="block truncate text-xs flex-1">
+                <div className="min-w-0 flex-1 flex items-center justify-between">
+                  <span className="block truncate text-[14px] font-normal leading-snug flex-1">
                     {chat.title}
-                  </span>
-                  <span className="text-[10px] text-slate-500 shrink-0 font-medium group-hover:hidden transition select-none">
-                    {formatChatTime(chat.updated_at || chat.created_at)}
                   </span>
                 </div>
               )}
@@ -687,7 +709,7 @@ export function DashboardPage() {
 
             {/* Hover Actions: Show Pin (if pinned) and Three-Dots Menu icon */}
             {!sidebarCollapsed && (
-              <div className={`relative flex items-center gap-1.5 transition-opacity duration-200 ${activeMenuChatId === chat.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+              <div className={`relative flex items-center gap-1 transition-opacity duration-200 ${activeMenuChatId === chat.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
                 }`}>
                 {chat.pinned && (
                   <Pin size={14} className="text-slate-400 shrink-0" />
@@ -873,22 +895,32 @@ export function DashboardPage() {
             }`}
         >
           {/* Top Header Section (Sticky) */}
-          <div className="h-[60px] flex items-center justify-between px-3.5 border-b border-white/[0.05] flex-shrink-0 sticky top-0 z-10 sidebar-bg">
+          <div className="h-[56px] flex items-center justify-between px-3.5 border-b border-white/[0.05] flex-shrink-0 sticky top-0 z-10 sidebar-bg">
             {!sidebarCollapsed ? (
               <>
-                <div className="flex items-center gap-2 overflow-hidden select-none shrink-0">
+                <div
+                  onClick={() => void createChat()}
+                  className="flex items-center gap-2 overflow-hidden select-none shrink-0 cursor-pointer"
+                >
                   <img src="/favicon.svg" alt="NovaMind Logo" className="size-6 shrink-0" />
                   <span className="text-sm font-bold tracking-wide brand-gradient truncate">
                     NovaMind AI
                   </span>
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => document.getElementById('sidebar-search-input')?.focus()}
+                    className="rounded-lg p-1.5 text-slate-400 hover:bg-white/5 hover:text-white transition shrink-0"
+                    title="Search chats"
+                  >
+                    <Search size={16} />
+                  </button>
                   <button
                     onClick={() => setSidebarCollapsed(true)}
-                    className="rounded-lg p-1 text-slate-400 hover:bg-white/5 hover:text-white transition shrink-0"
+                    className="rounded-lg p-1.5 text-slate-400 hover:bg-white/5 hover:text-white transition shrink-0"
                     title="Collapse Sidebar"
                   >
-                    <PanelLeftClose size={15} />
+                    <PanelLeftClose size={16} />
                   </button>
                 </div>
               </>
@@ -913,16 +945,16 @@ export function DashboardPage() {
           </div>
 
           {/* Scrollable Content */}
-          <div className="flex-1 overflow-y-auto min-h-0 select-none overscroll-y-contain px-2 py-4 space-y-5">
+          <div className="flex-1 overflow-y-auto min-h-0 select-none overscroll-y-contain px-2 py-3 space-y-4">
             {/* Main Navigation Items */}
             <div className="space-y-0.5">
               {/* New chat */}
               <button
                 onClick={() => void createChat()}
-                className="w-full flex items-center justify-between gap-2.5 px-3 py-2.5 rounded-lg text-xs font-semibold text-slate-200 hover:bg-white/5 transition duration-150"
+                className="w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl bg-[#212121] hover:bg-[#2f2f2f] text-[14px] font-medium text-white transition duration-150"
               >
-                <div className="flex items-center gap-2.5">
-                  <Plus size={16} className="text-slate-400" />
+                <div className="flex items-center gap-3">
+                  <SquarePen size={18} className="text-white shrink-0" />
                   {!sidebarCollapsed && <span>New chat</span>}
                 </div>
               </button>
@@ -930,19 +962,19 @@ export function DashboardPage() {
               {/* Library */}
               <button
                 onClick={() => showToast('Library feature coming soon!', 'info')}
-                className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs font-semibold text-slate-200 hover:bg-white/5 transition duration-150"
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[14px] font-normal text-[#ececec] hover:bg-[#212121]/60 hover:text-white transition duration-150"
               >
-                <LibraryIcon size={16} className="text-slate-400" />
+                <LibraryIcon size={18} className="text-[#ececec] shrink-0" />
                 {!sidebarCollapsed && <span>Library</span>}
               </button>
 
               {/* Projects */}
-              <div className="w-full flex items-center justify-between rounded-lg hover:bg-white/5 transition duration-150">
+              <div className="w-full flex items-center justify-between rounded-xl hover:bg-[#212121]/60 transition duration-150 text-[#ececec] hover:text-white">
                 <button
                   onClick={() => showToast('Projects folder coming soon!', 'info')}
-                  className="flex-1 flex items-center gap-2.5 px-3 py-2.5 text-xs font-semibold text-slate-200 text-left"
+                  className="flex-1 flex items-center gap-3 px-3 py-2 text-[14px] font-normal text-[#ececec] text-left"
                 >
-                  <Folder size={16} className="text-slate-400" />
+                  <Folder size={18} className="text-[#ececec] shrink-0" />
                   {!sidebarCollapsed && <span>Projects</span>}
                 </button>
                 {!sidebarCollapsed && (
@@ -954,49 +986,24 @@ export function DashboardPage() {
                     className="p-1 text-slate-400 hover:text-white mr-2"
                     title="Create chat in projects"
                   >
-                    <Plus size={14} />
+                    <Plus size={15} />
                   </button>
                 )}
               </div>
 
-              {/* Scheduled */}
-              <button
-                onClick={() => showToast('Scheduled tasks coming soon!', 'info')}
-                className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs font-semibold text-slate-200 hover:bg-white/5 transition duration-150"
-              >
-                <Calendar size={16} className="text-slate-400" />
-                {!sidebarCollapsed && <span>Scheduled</span>}
-              </button>
 
-              {/* Plugins */}
-              <button
-                onClick={() => showToast('Plugins store coming soon!', 'info')}
-                className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs font-semibold text-slate-200 hover:bg-white/5 transition duration-150"
-              >
-                <Puzzle size={16} className="text-slate-400" />
-                {!sidebarCollapsed && <span>Plugins</span>}
-              </button>
-
-              {/* More */}
-              <button
-                onClick={() => showToast('More options coming soon!', 'info')}
-                className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs font-semibold text-slate-200 hover:bg-white/5 transition duration-150"
-              >
-                <MoreHorizontal size={16} className="text-slate-400" />
-                {!sidebarCollapsed && <span>More</span>}
-              </button>
             </div>
 
             {/* Search Input Box */}
             {!sidebarCollapsed && (
-              <div className="px-1.5 pb-1">
+              <div className="px-1 pb-1 pt-1">
                 <div className="relative">
-                  <Search className="absolute top-1/2 left-3 -translate-y-1/2 text-slate-550 text-slate-500" size={13} />
+                  <Search className="absolute top-1/2 left-3 -translate-y-1/2 text-slate-500" size={14} />
                   <input
                     id="sidebar-search-input"
                     value={sidebarSearchQuery}
                     onChange={(e) => setSidebarSearchQuery(e.target.value)}
-                    className="input-glass min-h-[34px] w-full rounded-xl pr-3 pl-8 text-xs placeholder:text-slate-400 focus:outline-none"
+                    className="input-glass min-h-[34px] w-full rounded-xl pr-3 pl-8 text-[13px] placeholder:text-slate-400 focus:outline-none"
                     placeholder="Search chats..."
                   />
                   {sidebarSearchQuery && (
@@ -1004,7 +1011,7 @@ export function DashboardPage() {
                       onClick={() => setSidebarSearchQuery('')}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
                     >
-                      <X size={12} />
+                      <X size={13} />
                     </button>
                   )}
                 </div>
@@ -1021,7 +1028,7 @@ export function DashboardPage() {
                 </div>
               ) : filteredChats.length === 0 ? (
                 !sidebarCollapsed && (
-                  <p className="text-[10px] text-slate-600 text-center py-6">No chats recorded.</p>
+                  <p className="text-[12px] text-slate-500 text-center py-6">No chats recorded.</p>
                 )
               ) : (
                 <>
@@ -1029,22 +1036,24 @@ export function DashboardPage() {
                   {pinnedChats.length > 0 && (
                     <div className="space-y-0.5">
                       {!sidebarCollapsed && (
-                        <h4 className="px-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-[#94A3B8]">Pinned</h4>
+                        <div className="flex items-center gap-1.5 px-3 pt-2 pb-1 text-[13.5px] font-semibold text-white select-none">
+                          <span>Pinned</span>
+                          <ChevronDown size={14} className="text-slate-400 shrink-0" />
+                        </div>
                       )}
                       {pinnedChats.map(renderSidebarChatItem)}
                     </div>
                   )}
 
                   {/* Grouped Unpinned Chats (Recents) */}
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     {!sidebarCollapsed && (
-                      <h4 className="px-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-[#94A3B8]">Recents</h4>
+                      <div className="px-3 pt-2 pb-1 text-[13.5px] font-semibold text-white select-none">
+                        Recents
+                      </div>
                     )}
                     {groupedUnpinnedChats.map((group) => (
                       <div key={group.label} className="space-y-0.5">
-                        {!sidebarCollapsed && (
-                          <h5 className="px-3 pb-1 text-[9px] font-semibold uppercase tracking-wider text-slate-500">{group.label}</h5>
-                        )}
                         {group.chats.map(renderSidebarChatItem)}
                       </div>
                     ))}
@@ -1166,8 +1175,14 @@ export function DashboardPage() {
                 className="relative z-10 w-[280px] h-full sidebar-bg border-r border-white/5 flex flex-col shadow-2xl"
               >
                 {/* Mobile Drawer Header (Sticky) */}
-                <div className="h-[60px] flex items-center justify-between px-3.5 border-b border-white/[0.05] flex-shrink-0 sticky top-0 z-10 sidebar-bg">
-                  <div className="flex items-center gap-2 select-none shrink-0">
+                <div className="h-[56px] flex items-center justify-between px-3.5 border-b border-white/[0.05] flex-shrink-0 sticky top-0 z-10 sidebar-bg">
+                  <div
+                    onClick={() => {
+                      void createChat()
+                      setSidebarOpen(false)
+                    }}
+                    className="flex items-center gap-2 select-none shrink-0 cursor-pointer"
+                  >
                     <img src="/favicon.svg" alt="NovaMind Logo" className="size-5 shrink-0" />
                     <span className="text-xs font-bold tracking-wide brand-gradient truncate">
                       NovaMind AI
@@ -1176,16 +1191,16 @@ export function DashboardPage() {
                   <div className="flex items-center gap-1.5">
                     <button
                       onClick={() => setSidebarOpen(false)}
-                      className="rounded-lg p-1 text-slate-400 hover:bg-white/5 hover:text-white transition shrink-0"
+                      className="rounded-lg p-1.5 text-slate-400 hover:bg-white/5 hover:text-white transition shrink-0"
                       title="Close sidebar"
                     >
-                      <X size={15} />
+                      <X size={16} />
                     </button>
                   </div>
                 </div>
 
                 {/* Scrollable Content */}
-                <div className="flex-1 overflow-y-auto min-h-0 select-none overscroll-y-contain px-2 py-4 space-y-5">
+                <div className="flex-1 overflow-y-auto min-h-0 select-none overscroll-y-contain px-2 py-3 space-y-4">
                   {/* Mobile Drawer Main Navigation Items */}
                   <div className="space-y-0.5">
                     {/* New chat */}
@@ -1194,10 +1209,10 @@ export function DashboardPage() {
                         void createChat()
                         setSidebarOpen(false)
                       }}
-                      className="w-full flex items-center justify-between gap-2.5 px-3 py-2.5 rounded-lg text-xs font-semibold text-slate-200 hover:bg-white/5 transition duration-150"
+                      className="w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl bg-[#212121] hover:bg-[#2f2f2f] text-[14px] font-medium text-white transition duration-150"
                     >
-                      <div className="flex items-center gap-2.5">
-                        <Plus size={16} className="text-slate-400" />
+                      <div className="flex items-center gap-3">
+                        <SquarePen size={18} className="text-white shrink-0" />
                         <span>New chat</span>
                       </div>
                     </button>
@@ -1208,22 +1223,22 @@ export function DashboardPage() {
                         showToast('Library feature coming soon!', 'info')
                         setSidebarOpen(false)
                       }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs font-semibold text-slate-200 hover:bg-white/5 transition duration-150"
+                      className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[14px] font-normal text-[#ececec] hover:bg-[#212121]/60 hover:text-white transition duration-150"
                     >
-                      <LibraryIcon size={16} className="text-slate-400" />
+                      <LibraryIcon size={18} className="text-[#ececec] shrink-0" />
                       <span>Library</span>
                     </button>
 
                     {/* Projects */}
-                    <div className="w-full flex items-center justify-between rounded-lg hover:bg-white/5 transition duration-150">
+                    <div className="w-full flex items-center justify-between rounded-xl hover:bg-[#212121]/60 transition duration-150 text-[#ececec] hover:text-white">
                       <button
                         onClick={() => {
                           showToast('Projects folder coming soon!', 'info')
                           setSidebarOpen(false)
                         }}
-                        className="flex-1 flex items-center gap-2.5 px-3 py-2.5 text-xs font-semibold text-slate-200 text-left"
+                        className="flex-1 flex items-center gap-3 px-3 py-2 text-[14px] font-normal text-[#ececec] text-left"
                       >
-                        <Folder size={16} className="text-slate-400" />
+                        <Folder size={18} className="text-[#ececec] shrink-0" />
                         <span>Projects</span>
                       </button>
                       <button
@@ -1235,56 +1250,22 @@ export function DashboardPage() {
                         className="p-1 text-slate-400 hover:text-white mr-2"
                         title="Create chat in projects"
                       >
-                        <Plus size={14} />
+                        <Plus size={15} />
                       </button>
                     </div>
 
-                    {/* Scheduled */}
-                    <button
-                      onClick={() => {
-                        showToast('Scheduled tasks coming soon!', 'info')
-                        setSidebarOpen(false)
-                      }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs font-semibold text-slate-200 hover:bg-white/5 transition duration-150"
-                    >
-                      <Calendar size={16} className="text-slate-400" />
-                      <span>Scheduled</span>
-                    </button>
 
-                    {/* Plugins */}
-                    <button
-                      onClick={() => {
-                        showToast('Plugins store coming soon!', 'info')
-                        setSidebarOpen(false)
-                      }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs font-semibold text-slate-200 hover:bg-white/5 transition duration-150"
-                    >
-                      <Puzzle size={16} className="text-slate-400" />
-                      <span>Plugins</span>
-                    </button>
-
-                    {/* More */}
-                    <button
-                      onClick={() => {
-                        showToast('More options coming soon!', 'info')
-                        setSidebarOpen(false)
-                      }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs font-semibold text-slate-200 hover:bg-white/5 transition duration-150"
-                    >
-                      <MoreHorizontal size={16} className="text-slate-400" />
-                      <span>More</span>
-                    </button>
                   </div>
 
                   {/* Search Input Box */}
-                  <div className="px-1.5 pb-1">
+                  <div className="px-1 pb-1 pt-1">
                     <div className="relative">
-                      <Search className="absolute top-1/2 left-3 -translate-y-1/2 text-slate-500" size={13} />
+                      <Search className="absolute top-1/2 left-3 -translate-y-1/2 text-slate-500" size={14} />
                       <input
                         id="sidebar-search-input-mobile"
                         value={sidebarSearchQuery}
                         onChange={(e) => setSidebarSearchQuery(e.target.value)}
-                        className="input-glass min-h-[34px] w-full rounded-xl pr-3 pl-8 text-xs placeholder:text-slate-400 focus:outline-none"
+                        className="input-glass min-h-[34px] w-full rounded-xl pr-3 pl-8 text-[13px] placeholder:text-slate-400 focus:outline-none"
                         placeholder="Search chats..."
                       />
                       {sidebarSearchQuery && (
@@ -1292,7 +1273,7 @@ export function DashboardPage() {
                           onClick={() => setSidebarSearchQuery('')}
                           className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
                         >
-                          <X size={12} />
+                          <X size={13} />
                         </button>
                       )}
                     </div>
@@ -1307,23 +1288,27 @@ export function DashboardPage() {
                         ))}
                       </div>
                     ) : filteredChats.length === 0 ? (
-                      <p className="text-[10px] text-slate-600 text-center py-6">No chats recorded.</p>
+                      <p className="text-[12px] text-slate-500 text-center py-6">No chats recorded.</p>
                     ) : (
                       <>
                         {/* Pinned Chats */}
                         {pinnedChats.length > 0 && (
                           <div className="space-y-0.5">
-                            <h4 className="px-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-[#94A3B8]">Pinned</h4>
+                            <div className="flex items-center gap-1.5 px-3 pt-2 pb-1 text-[13.5px] font-semibold text-white select-none">
+                              <span>Pinned</span>
+                              <ChevronDown size={14} className="text-slate-400 shrink-0" />
+                            </div>
                             {pinnedChats.map(renderSidebarChatItem)}
                           </div>
                         )}
 
                         {/* Grouped Unpinned Chats (Recents) */}
-                        <div className="space-y-4">
-                          <h4 className="px-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-[#94A3B8]">Recents</h4>
+                        <div className="space-y-3">
+                          <div className="px-3 pt-2 pb-1 text-[13.5px] font-semibold text-white select-none">
+                            Recents
+                          </div>
                           {groupedUnpinnedChats.map((group) => (
                             <div key={group.label} className="space-y-0.5">
-                              <h5 className="px-3 pb-1 text-[9px] font-semibold uppercase tracking-wider text-slate-500">{group.label}</h5>
                               {group.chats.map(renderSidebarChatItem)}
                             </div>
                           ))}
@@ -1439,8 +1424,8 @@ export function DashboardPage() {
           }}
         >
 
-          {/* STICKY TOP NAVIGATION BAR (Clean transparent header without blur) */}
-          <header className="sticky top-0 z-20 w-full px-4 md:px-6 py-2 flex items-center justify-between bg-transparent border-none select-none pointer-events-none">
+          {/* FLOATING CONTROLS (Zero-height container, no header bar/background) */}
+          <header className="sticky top-0 z-20 w-full px-4 md:px-6 py-3 flex items-center justify-between bg-transparent border-none select-none pointer-events-none -mb-14">
             <div className="flex items-center gap-2.5 pointer-events-auto">
               {/* Sidebar mobile toggle trigger */}
               {!isFullscreen && (
@@ -1453,35 +1438,17 @@ export function DashboardPage() {
                 </button>
               )}
 
-              {/* Favicon Logo & Name - Flat ChatGPT style */}
-              <div className="flex items-center gap-2 cursor-pointer group py-1 px-1.5 rounded-lg hover:bg-white/10 transition">
-                <img src="/favicon.svg" alt="NovaMind Logo" className="size-5 shrink-0" />
-                <span className="text-sm font-semibold tracking-tight text-white font-sans">
-                  NovaMind AI
-                </span>
-                <ChevronDown size={14} className="text-slate-400 group-hover:text-white transition" />
-              </div>
+              {/* NovaMind AI Model Selector Header Dropdown (Matching User Images 1 & 2) */}
+              <ModelSelector
+                selectedModelId={selectedModel.id}
+                onSelectModel={(model) => setSelectedModel(model)}
+              />
             </div>
 
-            {/* Right side Actions (Share / Fullscreen) */}
+            {/* Right side Actions (Fullscreen) */}
             <div className="flex items-center gap-1.5 pointer-events-auto">
               <button
-                onClick={() => {
-                  if (selectedChat) {
-                    const link = `${window.location.origin}/dashboard?chat=${selectedChat.id}`
-                    void navigator.clipboard.writeText(link)
-                    showToast('Link copied to clipboard!', 'success')
-                  }
-                }}
-                className="rounded-lg px-2.5 py-1.5 text-slate-300 hover:bg-white/10 hover:text-white transition shrink-0 flex items-center gap-1.5 text-xs font-medium cursor-pointer"
-                title="Share Chat"
-              >
-                <Share size={14} />
-                <span className="hidden sm:inline">Share</span>
-              </button>
-
-              <button
-                onClick={() => setIsFullscreen(!isFullscreen)}
+                onClick={toggleFullscreen}
                 className="rounded-lg px-2.5 py-1.5 text-slate-300 hover:bg-white/10 hover:text-white transition shrink-0 flex items-center gap-1.5 text-xs font-medium cursor-pointer"
                 title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen Chat'}
               >
@@ -1504,7 +1471,7 @@ export function DashboardPage() {
           <div
             ref={chatViewportRef}
             onScroll={handleScroll}
-            className="flex-1 overflow-y-auto scrollbar-thin px-3 -mt-12 pt-14 md:px-4 pb-32 md:pb-36 flex flex-col gap-4 md:gap-6 bg-transparent"
+            className="flex-1 overflow-y-auto scrollbar-thin px-4 pt-14 md:px-6 pb-32 md:pb-36 flex flex-col items-center gap-4 md:gap-6 bg-transparent"
           >
             <div className="w-full max-w-[768px] mx-auto flex-1 flex flex-col justify-between">
 
@@ -1953,7 +1920,7 @@ export function DashboardPage() {
 
           {/* FIXED BOTTOM INPUT PANEL */}
           <footer
-            className="fixed bottom-0 right-0 p-4 bg-gradient-to-t from-[#0a0b10] via-[#0a0b10]/95 to-transparent z-15 transition-all duration-300"
+            className="fixed bottom-0 right-0 p-4 bg-transparent z-15 transition-all duration-300 pointer-events-none"
             style={{
               left: isFullscreen
                 ? '0px'
@@ -1962,7 +1929,7 @@ export function DashboardPage() {
                   : '0px')
             }}
           >
-            <div className="w-full max-w-[768px] mx-auto">
+            <div className="w-full max-w-[768px] mx-auto pointer-events-auto">
 
               {/* Pre-upload attachment file tags */}
               {pendingAttachments.length > 0 && (
@@ -1973,8 +1940,8 @@ export function DashboardPage() {
                       <div
                         key={item.id}
                         className={`relative rounded-xl border border-white/10 bg-[#212121] overflow-hidden transition-all duration-250 ${isImg
-                            ? 'size-16 group hover:border-indigo-500/50 shadow-md animate-in fade-in zoom-in duration-200'
-                            : 'flex items-center gap-2 p-2 pr-3 text-xs text-white max-w-[200px] animate-in fade-in zoom-in duration-200'
+                          ? 'size-16 group hover:border-indigo-500/50 shadow-md animate-in fade-in zoom-in duration-200'
+                          : 'flex items-center gap-2 p-2 pr-3 text-xs text-white max-w-[200px] animate-in fade-in zoom-in duration-200'
                           }`}
                       >
                         {isImg ? (
@@ -2038,7 +2005,7 @@ export function DashboardPage() {
                   <button
                     type="button"
                     onClick={() => setIsPromptLibraryOpen(true)}
-                    className="size-7 rounded-full border border-indigo-500/20 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 hover:text-indigo-300 transition flex items-center justify-center shrink-0"
+                    className="size-7 rounded-full border border-indigo-500/20 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 hover:text-indigo-300 transition flex items-center justify-center shrink-0 cursor-pointer"
                     title="Prompt Templates Library"
                   >
                     <Sparkles size={14} />
@@ -2077,8 +2044,8 @@ export function DashboardPage() {
                       type="submit"
                       disabled={isSending || isUploadingFiles || (!prompt.trim() && pendingAttachments.length === 0)}
                       className={`size-8 rounded-full flex items-center justify-center transition-all duration-200 send-btn-animated shadow-md ${(!prompt.trim() && pendingAttachments.length === 0)
-                          ? 'bg-white/10 text-white/40 cursor-not-allowed'
-                          : 'bg-white text-black hover:bg-neutral-200'
+                        ? 'bg-white/10 text-white/40 cursor-not-allowed'
+                        : 'bg-white text-black hover:bg-neutral-200'
                         }`}
                     >
                       {isSending || isUploadingFiles ? (
@@ -2219,6 +2186,14 @@ export function DashboardPage() {
         onClose={() => setCodePreviewState((prev) => ({ ...prev, isOpen: false }))}
         code={codePreviewState.code}
         language={codePreviewState.language}
+      />
+
+      {/* Claude-style Live Code Artifacts Sandbox Drawer */}
+      <ArtifactsDrawer
+        isOpen={artifactsDrawerState.isOpen}
+        onClose={() => setArtifactsDrawerState((prev) => ({ ...prev, isOpen: false }))}
+        codeContent={artifactsDrawerState.code}
+        language={artifactsDrawerState.language}
       />
 
       {/* Prompt Templates Library Modal */}

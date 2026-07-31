@@ -1,12 +1,12 @@
 import type { UserSettings } from '../types/api'
 
 export const THEME_DEFAULTS = {
-  user_bubble_color: '#303030',
+  user_bubble_color: '#2f2f2f',
   user_text_color: '#F7F7F8',
   ai_accent_color: '#10A37F',
-  chat_background_color: '#212121',
-  sidebar_color: '#171717',
-  header_color: '#212121',
+  chat_background_color: '#000000',
+  sidebar_color: '#000000',
+  header_color: '#000000',
   primary_color: '#10A37F',
   font_size: 16,
   font_family: 'Inter',

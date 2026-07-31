@@ -5,7 +5,7 @@ $frontendUrl = env('FRONTEND_URL', 'http://localhost:5173');
 return [
     'paths' => ['api/*', 'sanctum/csrf-cookie'],
     'allowed_methods' => ['*'],
-    'allowed_origins' => array_filter(explode(',', $frontendUrl)),
+    'allowed_origins' => ['*'],
     'allowed_origins_patterns' => [],
     'allowed_headers' => ['*'],
     'exposed_headers' => [],
