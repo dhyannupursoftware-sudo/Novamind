@@ -12,15 +12,17 @@ class GeminiService
     private string $apiKey;
     private string $model;
     private int $timeout;
+    private string $systemInstruction;
 
     public function __construct()
     {
         $this->apiKey = (string) config('services.gemini.api_key', '');
         $this->model = (string) config('services.gemini.model', 'gemini-2.5-flash');
         $this->timeout = (int) config('services.gemini.timeout', 30);
+        $this->systemInstruction = (string) config('services.gemini.system_instruction', '');
     }
 
-    public function generateResponse(string $message): string
+    public function generateResponse(string $message, ?string $customSystemInstruction = null): string
     {
         if (empty($this->apiKey)) {
             throw new RuntimeException('Gemini API key is not configured.');
@@ -28,22 +30,39 @@ class GeminiService
 
         $url = "https://generativelanguage.googleapis.com/v1beta/models/{$this->model}:generateContent?key={$this->apiKey}";
 
+        $systemInstruction = $customSystemInstruction ?? $this->systemInstruction;
+
+        $payload = [
+            'contents' => [
+                [
+                    'parts' => [
+                        [
+                            'text' => $message
+                        ]
+                    ]
+                ]
+            ],
+            'generationConfig' => [
+                'temperature' => 0.7,
+                'topP' => 0.95,
+                'maxOutputTokens' => 2048,
+            ],
+        ];
+
+        if (!empty($systemInstruction)) {
+            $payload['systemInstruction'] = [
+                'parts' => [
+                    ['text' => $systemInstruction]
+                ]
+            ];
+        }
+
         try {
 
             $response = Http::withoutVerifying()
                 ->timeout($this->timeout)
                 ->acceptJson()
-                ->post($url, [
-                    'contents' => [
-                        [
-                            'parts' => [
-                                [
-                                    'text' => $message
-                                ]
-                            ]
-                        ]
-                    ]
-                ]);
+                ->post($url, $payload);
 
             Log::info('Gemini Response', [
                 'status' => $response->status(),
@@ -82,7 +101,7 @@ class GeminiService
         return trim($text);
     }
 
-        public function generateResponseFromHistory(array $historyMessages): string
+    public function generateResponseFromHistory(array $historyMessages, ?string $customSystemInstruction = null): string
     {
         if (empty($this->apiKey)) {
             throw new RuntimeException('Gemini API key is not configured.');
@@ -139,13 +158,30 @@ class GeminiService
 
         $url = "https://generativelanguage.googleapis.com/v1beta/models/{$this->model}:generateContent?key={$this->apiKey}";
 
+        $systemInstruction = $customSystemInstruction ?? $this->systemInstruction;
+
+        $payload = [
+            'contents' => $contents,
+            'generationConfig' => [
+                'temperature' => 0.7,
+                'topP' => 0.95,
+                'maxOutputTokens' => 2048,
+            ],
+        ];
+
+        if (!empty($systemInstruction)) {
+            $payload['systemInstruction'] = [
+                'parts' => [
+                    ['text' => $systemInstruction]
+                ]
+            ];
+        }
+
         try {
             $response = Http::withoutVerifying()
                 ->timeout($this->timeout)
                 ->acceptJson()
-                ->post($url, [
-                    'contents' => $contents
-                ]);
+                ->post($url, $payload);
 
             Log::info('Gemini Chat History Response', [
                 'status' => $response->status(),

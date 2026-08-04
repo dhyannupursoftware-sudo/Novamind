@@ -37,9 +37,10 @@ export const AI_MODELS: AIModel[] = [
 interface ModelSelectorProps {
   selectedModelId: string
   onSelectModel: (model: AIModel) => void
+  compactMobile?: boolean
 }
 
-export function ModelSelector({ selectedModelId, onSelectModel }: ModelSelectorProps) {
+export function ModelSelector({ selectedModelId, onSelectModel, compactMobile = false }: ModelSelectorProps) {
   const [isOpen, setIsOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -57,39 +58,55 @@ export function ModelSelector({ selectedModelId, onSelectModel }: ModelSelectorP
 
   return (
     <div className="relative inline-block text-left select-none z-40" ref={menuRef}>
-      {/* Header Dropdown Trigger Button - No border, clean logo & title */}
-      <button
-        type="button"
-        onClick={() => setIsOpen((prev) => !prev)}
-        className="flex items-center gap-2.5 px-2 py-1.5 rounded-xl bg-transparent hover:bg-white/5 text-white transition border-none cursor-pointer active:scale-98 select-none group"
-      >
-        {/* Purple/Blue Gradient Lightning Bolt Icon (Matching Image 1) */}
-        <svg className="size-6 shrink-0" viewBox="0 0 24 24" fill="none">
-          <path
-            d="M13 2L3 14h7v8l11-12h-8V2z"
-            fill="url(#header-lightning-grad)"
+      {/* Header Dropdown Trigger Button */}
+      {compactMobile ? (
+        <button
+          type="button"
+          onClick={() => setIsOpen((prev) => !prev)}
+          className="flex items-center gap-1.5 text-sm sm:text-base font-bold tracking-tight text-white hover:text-slate-200 transition border-none cursor-pointer select-none group px-1 py-0.5"
+        >
+          <span>NovaMind AI</span>
+          <ChevronDown
+            size={14}
+            className={`text-slate-300 transition-transform duration-200 group-hover:text-white ${
+              isOpen ? 'rotate-180 text-white' : ''
+            }`}
           />
-          <defs>
-            <linearGradient id="header-lightning-grad" x1="3" y1="2" x2="21" y2="22" gradientUnits="userSpaceOnUse">
-              <stop stopColor="#a855f7" />
-              <stop offset="1" stopColor="#3b82f6" />
-            </linearGradient>
-          </defs>
-        </svg>
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setIsOpen((prev) => !prev)}
+          className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-transparent hover:bg-white/5 text-white transition border-none cursor-pointer active:scale-98 select-none group"
+        >
+          {/* Purple/Blue Gradient Lightning Bolt Icon */}
+          <svg className="size-4.5 shrink-0" viewBox="0 0 24 24" fill="none">
+            <path
+              d="M13 2L3 14h7v8l11-12h-8V2z"
+              fill="url(#header-lightning-grad)"
+            />
+            <defs>
+              <linearGradient id="header-lightning-grad" x1="3" y1="2" x2="21" y2="22" gradientUnits="userSpaceOnUse">
+                <stop stopColor="#a855f7" />
+                <stop offset="1" stopColor="#3b82f6" />
+              </linearGradient>
+            </defs>
+          </svg>
 
-        {/* Chatbot Name: NovaMind AI */}
-        <span className="text-lg font-bold tracking-tight text-white font-sans">
-          NovaMind AI
-        </span>
+          {/* Chatbot Name: NovaMind AI */}
+          <span className="text-sm font-bold tracking-tight text-white font-sans">
+            NovaMind AI
+          </span>
 
-        {/* Dropdown Arrow */}
-        <ChevronDown
-          size={16}
-          className={`text-slate-400 transition-transform duration-200 group-hover:text-white ${
-            isOpen ? 'rotate-180 text-white' : ''
-          }`}
-        />
-      </button>
+          {/* Dropdown Arrow */}
+          <ChevronDown
+            size={14}
+            className={`text-slate-400 transition-transform duration-200 group-hover:text-white ${
+              isOpen ? 'rotate-180 text-white' : ''
+            }`}
+          />
+        </button>
+      )}
 
       {/* ChatGPT-Style Model Selector Popup (Matching Image 2) */}
       <AnimatePresence>
@@ -99,7 +116,7 @@ export function ModelSelector({ selectedModelId, onSelectModel }: ModelSelectorP
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.96 }}
             transition={{ duration: 0.15 }}
-            className="absolute left-0 mt-2 w-80 rounded-2xl border border-white/10 bg-[#262626] p-2 shadow-2xl backdrop-blur-xl z-50 select-none"
+            className="absolute left-0 mt-2 w-[calc(100vw-2rem)] sm:w-80 max-w-xs rounded-2xl border border-white/10 bg-[#262626] p-2 shadow-2xl backdrop-blur-xl z-50 select-none"
           >
             <div className="space-y-1">
               {AI_MODELS.map((model) => {

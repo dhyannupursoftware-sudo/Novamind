@@ -133,12 +133,12 @@ export function CommandPalette({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 sm:pt-28 bg-black/75 backdrop-blur-md p-4">
+      <div className="fixed inset-0 z-50 flex items-start justify-center pt-10 sm:pt-24 bg-black/75 backdrop-blur-md p-3 sm:p-4">
         <motion.div
           initial={{ opacity: 0, y: -20, scale: 0.95 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: -20, scale: 0.95 }}
-          className="w-full max-w-xl bg-[#0c0d12] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[70vh]"
+          className="w-full max-w-xl bg-[#0c0d12] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] sm:max-h-[70vh]"
         >
           {/* Search Bar Input */}
           <div className="relative flex items-center px-4 py-3 border-b border-white/10 bg-white/[0.02]">

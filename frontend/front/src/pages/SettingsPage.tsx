@@ -170,17 +170,17 @@ export function SettingsPage() {
   ] as const
 
   return (
-    <main className="min-h-screen text-[#ececec] bg-[#171717] font-sans relative overflow-x-hidden p-6 md:p-10">
-      {/* Background glow animations */}
-      <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-indigo-500/5 blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-[#8B5CF6]/5 blur-[120px] pointer-events-none" />
+    <main className="min-h-screen text-[#ececec] bg-[#171717] font-sans relative overflow-x-hidden p-4 sm:p-6 md:p-10">
+      {/* Background glow effects */}
+      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-indigo-500/5 blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-[#8B5CF6]/5 blur-[120px] pointer-events-none" />
 
-      <div className="max-w-6xl mx-auto space-y-8 relative z-10">
+      <div className="max-w-5xl mx-auto space-y-6 sm:space-y-8 relative z-10">
         
         {/* Navigation Back Button */}
         <button 
           onClick={() => navigate('/dashboard')}
-          className="flex items-center gap-2.5 px-4 py-2 rounded-xl border border-white/5 bg-white/[0.02] hover:bg-white/5 hover:text-white transition duration-200 text-slate-400 font-semibold text-xs cursor-pointer select-none"
+          className="flex items-center gap-2.5 px-4 py-2 rounded-xl border border-white/5 bg-white/[0.02] hover:bg-white/5 hover:text-white transition duration-200 text-slate-400 font-semibold text-xs cursor-pointer select-none min-h-[44px]"
         >
           <ArrowLeft size={14} />
           <span>Back to Chat</span>
@@ -189,14 +189,14 @@ export function SettingsPage() {
         {/* Settings Title */}
         <div className="flex items-center gap-3 border-b border-white/5 pb-4 select-none">
           <Settings className="text-indigo-400 size-6 animate-spin-slow" />
-          <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white">System Configurations</h1>
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-black tracking-tight text-white">System Configurations</h1>
         </div>
 
         {/* Grid layout (Left tabs menu, Right active tab panel) */}
-        <div className="grid md:grid-cols-12 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8">
           
           {/* Tab buttons sidebar (Col 4) */}
-          <nav className="md:col-span-4 flex flex-row overflow-x-auto md:flex-col gap-1.5 scrollbar-none pb-2 md:pb-0 select-none whitespace-nowrap">
+          <nav className="lg:col-span-4 flex flex-row overflow-x-auto lg:flex-col gap-1.5 scrollbar-none pb-2 lg:pb-0 select-none whitespace-nowrap">
             {tabs.map((tab) => {
               const Icon = tab.icon
               const isActive = activeTab === tab.id
@@ -204,7 +204,7 @@ export function SettingsPage() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex shrink-0 items-center gap-3 px-4 py-3 rounded-2xl text-xs font-semibold tracking-wide border transition-all duration-200 text-left cursor-pointer ${
+                  className={`flex shrink-0 items-center gap-3 px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-2xl text-xs font-semibold tracking-wide border transition-all duration-200 text-left cursor-pointer ${
                     isActive 
                       ? 'bg-indigo-500/10 text-indigo-300 border-indigo-500/30 font-bold shadow-md shadow-indigo-500/[0.03]' 
                       : 'border-transparent text-slate-400 hover:bg-white/5 hover:text-slate-200'
@@ -218,8 +218,8 @@ export function SettingsPage() {
           </nav>
 
           {/* Active Tab Panel (Col 8) */}
-          <div className="md:col-span-8">
-            <div className="glass rounded-[28px] p-6 md:p-8 border border-white/5 space-y-6">
+          <div className="lg:col-span-8">
+            <div className="glass rounded-[28px] p-4 sm:p-6 md:p-8 border border-white/5 space-y-6">
 
               {/* SECTION 1: APPEARANCE */}
               {activeTab === 'appearance' && (
@@ -406,12 +406,12 @@ export function SettingsPage() {
 
                   <div className="space-y-4">
                     {/* Auto Scroll */}
-                    <div className="flex items-center justify-between p-4 rounded-2xl border border-white/5 bg-[#0F172A]/40">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl border border-white/5 bg-[#0F172A]/40">
                       <div>
                         <span className="text-xs font-bold text-slate-200 block">Auto Scroll to Bottom</span>
                         <span className="text-[10px] text-slate-500">Scroll to bottom automatically on new messages</span>
                       </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
+                      <label className="relative inline-flex items-center cursor-pointer shrink-0 self-start sm:self-auto">
                         <input
                           type="checkbox"
                           checked={uiSettings.autoScroll}
@@ -423,12 +423,12 @@ export function SettingsPage() {
                     </div>
 
                     {/* Typing Indicator */}
-                    <div className="flex items-center justify-between p-4 rounded-2xl border border-white/5 bg-[#0F172A]/40">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl border border-white/5 bg-[#0F172A]/40">
                       <div>
                         <span className="text-xs font-bold text-slate-200 block">AI Thinking Indicator</span>
                         <span className="text-[10px] text-slate-500">Show animation placeholder when model generates text</span>
                       </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
+                      <label className="relative inline-flex items-center cursor-pointer shrink-0 self-start sm:self-auto">
                         <input
                           type="checkbox"
                           checked={uiSettings.showTypingIndicator}
@@ -440,12 +440,12 @@ export function SettingsPage() {
                     </div>
 
                     {/* Show Timestamps */}
-                    <div className="flex items-center justify-between p-4 rounded-2xl border border-white/5 bg-[#0F172A]/40">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl border border-white/5 bg-[#0F172A]/40">
                       <div>
                         <span className="text-xs font-bold text-slate-200 block">Message Timestamps</span>
                         <span className="text-[10px] text-slate-500">Display dates and times for chat responses</span>
                       </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
+                      <label className="relative inline-flex items-center cursor-pointer shrink-0 self-start sm:self-auto">
                         <input
                           type="checkbox"
                           checked={uiSettings.showTimestamps}
@@ -457,15 +457,15 @@ export function SettingsPage() {
                     </div>
 
                     {/* View mode Compact vs Comfortable */}
-                    <div className="flex items-center justify-between p-4 rounded-2xl border border-white/5 bg-[#0F172A]/40">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl border border-white/5 bg-[#0F172A]/40">
                       <div>
                         <span className="text-xs font-bold text-slate-200 block">Layout View Mode</span>
                         <span className="text-[10px] text-slate-500">Switch spacing density of message history</span>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
                         <button
                           onClick={() => updateUiSetting('chatViewMode', 'compact')}
-                          className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border transition ${
+                          className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border transition cursor-pointer ${
                             uiSettings.chatViewMode === 'compact'
                               ? 'bg-indigo-500/10 text-indigo-300 border-indigo-500/30'
                               : 'bg-transparent border-white/5 text-slate-400'
@@ -475,7 +475,7 @@ export function SettingsPage() {
                         </button>
                         <button
                           onClick={() => updateUiSetting('chatViewMode', 'comfortable')}
-                          className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border transition ${
+                          className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border transition cursor-pointer ${
                             uiSettings.chatViewMode === 'comfortable'
                               ? 'bg-indigo-500/10 text-indigo-300 border-indigo-500/30'
                               : 'bg-transparent border-white/5 text-slate-400'

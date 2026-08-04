@@ -11,7 +11,6 @@ import {
   FileText,
   Loader2,
   LogOut,
-  Menu,
   MessageSquare,
   Mic,
   Paperclip,
@@ -22,8 +21,6 @@ import {
   Sparkles,
   Trash2,
   User,
-  Volume2,
-  VolumeX,
   X,
   PanelLeftClose,
   PanelLeft,
@@ -43,7 +40,10 @@ import {
   ZoomIn,
   ZoomOut,
   Play,
-  SquarePen
+  SquarePen,
+  Upload,
+  Clock,
+  AtSign
 } from 'lucide-react'
 import { parseFileContent } from '../lib/fileParser'
 import { MarkdownRenderer } from '../components/ui/MarkdownRenderer'
@@ -80,8 +80,6 @@ export function DashboardPage() {
     uploadFile,
     isListening,
     toggleSpeechRecognition,
-    speakingMessageId,
-    speakText,
     uiSettings,
   } = useChat()
 
@@ -104,6 +102,18 @@ export function DashboardPage() {
   // Layout Controls
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+
+  // Body scroll lock effect for mobile sidebar drawer
+  useEffect(() => {
+    if (sidebarOpen && !isDesktop && !isTablet) {
+      document.body.classList.add('body-scroll-lock')
+    } else {
+      document.body.classList.remove('body-scroll-lock')
+    }
+    return () => {
+      document.body.classList.remove('body-scroll-lock')
+    }
+  }, [sidebarOpen, isDesktop, isTablet])
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false)
   const [mobileProfileDropdownOpen, setMobileProfileDropdownOpen] = useState(false)
   const [activeMenuChatId, setActiveMenuChatId] = useState<number | null>(null)
@@ -151,6 +161,7 @@ export function DashboardPage() {
 
   // Input states
   const [prompt, setPrompt] = useState('')
+  const [plusMenuOpen, setPlusMenuOpen] = useState(false)
   const [pendingAttachments, setPendingAttachments] = useState<{ id: string; name: string; type: string; size: number; file: File; previewUrl?: string }[]>([])
   const [isUploadingFiles, setIsUploadingFiles] = useState(false)
   const [showScrollFAB, setShowScrollFAB] = useState(false)
@@ -213,11 +224,11 @@ export function DashboardPage() {
   // Fullscreen Handler & Sync
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(() => {})
+      document.documentElement.requestFullscreen().catch(() => { })
       setIsFullscreen(true)
     } else {
       if (document.exitFullscreen) {
-        document.exitFullscreen().catch(() => {})
+        document.exitFullscreen().catch(() => { })
       }
       setIsFullscreen(false)
     }
@@ -234,7 +245,7 @@ export function DashboardPage() {
     const handleKeyDown = (e: globalThis.KeyboardEvent) => {
       if (e.key === 'Escape') {
         if (document.fullscreenElement && document.exitFullscreen) {
-          document.exitFullscreen().catch(() => {})
+          document.exitFullscreen().catch(() => { })
         }
         setIsFullscreen(false)
       }
@@ -365,14 +376,27 @@ export function DashboardPage() {
     textarea.style.height = `${Math.min(textarea.scrollHeight, 180)}px`
   }, [prompt])
 
-  // Scroll to bottom on new messages
+  // Scroll to bottom helper (triggered manually via Scroll FAB button)
   const scrollToBottom = () => {
     messageEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
 
+  // Scroll new user question smoothly to top of viewport
+  const prevMessagesCountRef = useRef(messages.length)
   useEffect(() => {
-    scrollToBottom()
-  }, [messages, isSending])
+    if (messages.length > prevMessagesCountRef.current) {
+      const lastMsg = messages[messages.length - 1]
+      if (lastMsg && lastMsg.role === 'user') {
+        setTimeout(() => {
+          const el = document.getElementById(`msg-${lastMsg.id}`)
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          }
+        }, 50)
+      }
+    }
+    prevMessagesCountRef.current = messages.length
+  }, [messages])
 
   // Filter messages based on search query
   const [messageSearchQuery] = useState('')
@@ -694,10 +718,12 @@ export function DashboardPage() {
               className={`flex flex-1 items-center gap-2.5 text-left min-w-0 animate-none ${isSelected ? 'text-white font-medium' : 'text-[#ececec] hover:text-white'
                 }`}
             >
-              <MessageSquare
-                className={`shrink-0 ${isSelected ? 'text-white' : 'text-slate-400 group-hover:text-white'}`}
-                size={16}
-              />
+              {chat.pinned && (
+                <MessageSquare
+                  className={`shrink-0 ${isSelected ? 'text-white' : 'text-slate-200 group-hover:text-white'}`}
+                  size={17}
+                />
+              )}
               {!sidebarCollapsed && (
                 <div className="min-w-0 flex-1 flex items-center justify-between">
                   <span className="block truncate text-[14px] font-normal leading-snug flex-1">
@@ -891,7 +917,7 @@ export function DashboardPage() {
         {/* FIXED LEFT SIDEBAR (Desktop / Tablet) */}
         <aside
           className={`fixed top-0 left-0 h-screen sidebar-bg border-r border-white/[0.05] z-30 transition-all duration-300 select-none flex flex-col ${isFullscreen ? 'hidden' : 'hidden md:flex'
-            } ${sidebarCollapsed ? 'w-[75px]' : 'w-[280px]'
+            } ${sidebarCollapsed ? 'w-[64px]' : (isTablet ? 'w-[240px]' : 'w-[260px]')
             }`}
         >
           {/* Top Header Section (Sticky) */}
@@ -947,51 +973,84 @@ export function DashboardPage() {
           {/* Scrollable Content */}
           <div className="flex-1 overflow-y-auto min-h-0 select-none overscroll-y-contain px-2 py-3 space-y-4">
             {/* Main Navigation Items */}
-            <div className="space-y-0.5">
+            <div className="space-y-1">
               {/* New chat */}
               <button
                 onClick={() => void createChat()}
-                className="w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl bg-[#212121] hover:bg-[#2f2f2f] text-[14px] font-medium text-white transition duration-150"
+                className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center p-2' : 'justify-between px-3 py-2.5'} rounded-xl bg-transparent hover:bg-[#212121]/60 text-[14px] font-medium text-white transition duration-150 cursor-pointer`}
+                title="New chat"
               >
                 <div className="flex items-center gap-3">
-                  <SquarePen size={18} className="text-white shrink-0" />
+                  <SquarePen size={19} className="text-white shrink-0" />
                   {!sidebarCollapsed && <span>New chat</span>}
                 </div>
               </button>
 
-              {/* Library */}
-              <button
-                onClick={() => showToast('Library feature coming soon!', 'info')}
-                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[14px] font-normal text-[#ececec] hover:bg-[#212121]/60 hover:text-white transition duration-150"
-              >
-                <LibraryIcon size={18} className="text-[#ececec] shrink-0" />
-                {!sidebarCollapsed && <span>Library</span>}
-              </button>
-
-              {/* Projects */}
-              <div className="w-full flex items-center justify-between rounded-xl hover:bg-[#212121]/60 transition duration-150 text-[#ececec] hover:text-white">
-                <button
-                  onClick={() => showToast('Projects folder coming soon!', 'info')}
-                  className="flex-1 flex items-center gap-3 px-3 py-2 text-[14px] font-normal text-[#ececec] text-left"
-                >
-                  <Folder size={18} className="text-[#ececec] shrink-0" />
-                  {!sidebarCollapsed && <span>Projects</span>}
-                </button>
-                {!sidebarCollapsed && (
+              {sidebarCollapsed ? (
+                <>
+                  {/* Search Icon in Collapsed Rail */}
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      void createChat()
+                    onClick={() => {
+                      setSidebarCollapsed(false)
+                      setTimeout(() => document.getElementById('sidebar-search-input')?.focus(), 150)
                     }}
-                    className="p-1 text-slate-400 hover:text-white mr-2"
-                    title="Create chat in projects"
+                    className="w-full flex items-center justify-center p-2 rounded-xl hover:bg-[#212121]/60 text-[#ececec] hover:text-white transition duration-150 cursor-pointer"
+                    title="Search chats"
                   >
-                    <Plus size={15} />
+                    <Search size={19} className="shrink-0" />
                   </button>
-                )}
-              </div>
 
+                  {/* Pinned Icon in Collapsed Rail */}
+                  <button
+                    onClick={() => setSidebarCollapsed(false)}
+                    className="w-full flex items-center justify-center p-2 rounded-xl hover:bg-[#212121]/60 text-[#ececec] hover:text-white transition duration-150 cursor-pointer"
+                    title="Pinned chats"
+                  >
+                    <Pin size={19} className="shrink-0" />
+                  </button>
 
+                  {/* Recent Chat Icon in Collapsed Rail */}
+                  <button
+                    onClick={() => setSidebarCollapsed(false)}
+                    className="w-full flex items-center justify-center p-2 rounded-xl hover:bg-[#212121]/60 text-[#ececec] hover:text-white transition duration-150 cursor-pointer"
+                    title="Recent chats"
+                  >
+                    <MessageSquare size={19} className="shrink-0" />
+                  </button>
+                </>
+              ) : (
+                <>
+                  {/* Library */}
+                  <button
+                    onClick={() => showToast('Library feature coming soon!', 'info')}
+                    className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[14px] font-normal text-[#ececec] hover:bg-[#212121]/60 hover:text-white transition duration-150"
+                  >
+                    <LibraryIcon size={18} className="text-[#ececec] shrink-0" />
+                    <span>Library</span>
+                  </button>
+
+                  {/* Projects */}
+                  <div className="w-full flex items-center justify-between rounded-xl hover:bg-[#212121]/60 transition duration-150 text-[#ececec] hover:text-white">
+                    <button
+                      onClick={() => showToast('Projects folder coming soon!', 'info')}
+                      className="flex-1 flex items-center gap-3 px-3 py-2 text-[14px] font-normal text-[#ececec] text-left"
+                    >
+                      <Folder size={18} className="text-[#ececec] shrink-0" />
+                      <span>Projects</span>
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        void createChat()
+                      }}
+                      className="p-1 text-slate-400 hover:text-white mr-2"
+                      title="Create chat in projects"
+                    >
+                      <Plus size={15} />
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Search Input Box */}
@@ -1162,110 +1221,110 @@ export function DashboardPage() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
                 onClick={() => setSidebarOpen(false)}
-                className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm"
+                className="fixed inset-0 bg-black/70 pointer-events-auto"
               />
 
-              {/* Drawer Container (matches desktop sidebar layout) */}
+              {/* Drawer Container (GPU hardware accelerated matching ChatGPT mobile app screenshot) */}
               <motion.aside
-                initial={{ x: -280 }}
+                initial={{ x: '-100%' }}
                 animate={{ x: 0 }}
-                exit={{ x: -280 }}
-                transition={{ type: 'tween', duration: 0.3 }}
-                className="relative z-10 w-[280px] h-full sidebar-bg border-r border-white/5 flex flex-col shadow-2xl"
+                exit={{ x: '-100%' }}
+                transition={{ type: 'spring', damping: 26, stiffness: 300, mass: 0.8 }}
+                className="relative z-10 w-[82vw] max-w-[320px] h-full bg-[#0d0d0d] text-white border-r border-white/10 flex flex-col shadow-2xl transform-gpu will-change-transform"
               >
-                {/* Mobile Drawer Header (Sticky) */}
-                <div className="h-[56px] flex items-center justify-between px-3.5 border-b border-white/[0.05] flex-shrink-0 sticky top-0 z-10 sidebar-bg">
-                  <div
+                {/* Mobile Drawer Header (Sticky Top matching screenshot) */}
+                <div className="h-[64px] flex items-center justify-between px-4 pt-3 pb-1 shrink-0 bg-[#0d0d0d]">
+                  <h2 className="text-xl font-bold tracking-tight text-white font-sans">
+                    NovaMind AI
+                  </h2>
+                  <button
                     onClick={() => {
-                      void createChat()
-                      setSidebarOpen(false)
+                      const input = document.getElementById('sidebar-search-input-mobile')
+                      input?.focus()
                     }}
-                    className="flex items-center gap-2 select-none shrink-0 cursor-pointer"
+                    className="size-10 rounded-full bg-white/10 hover:bg-white/15 active:scale-95 transition flex items-center justify-center text-white cursor-pointer"
+                    title="Search chats"
                   >
-                    <img src="/favicon.svg" alt="NovaMind Logo" className="size-5 shrink-0" />
-                    <span className="text-xs font-bold tracking-wide brand-gradient truncate">
-                      NovaMind AI
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      onClick={() => setSidebarOpen(false)}
-                      className="rounded-lg p-1.5 text-slate-400 hover:bg-white/5 hover:text-white transition shrink-0"
-                      title="Close sidebar"
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
+                    <Search size={20} />
+                  </button>
                 </div>
 
                 {/* Scrollable Content */}
-                <div className="flex-1 overflow-y-auto min-h-0 select-none overscroll-y-contain px-2 py-3 space-y-4">
-                  {/* Mobile Drawer Main Navigation Items */}
-                  <div className="space-y-0.5">
-                    {/* New chat */}
-                    <button
-                      onClick={() => {
-                        void createChat()
-                        setSidebarOpen(false)
-                      }}
-                      className="w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl bg-[#212121] hover:bg-[#2f2f2f] text-[14px] font-medium text-white transition duration-150"
-                    >
-                      <div className="flex items-center gap-3">
-                        <SquarePen size={18} className="text-white shrink-0" />
-                        <span>New chat</span>
-                      </div>
-                    </button>
-
+                <div className="flex-1 overflow-y-auto min-h-0 select-none px-3 py-2 space-y-4">
+                  {/* Main Nav Items Matching Screenshot: Library, Projects, Scheduled, Plugins, More */}
+                  <div className="space-y-1">
                     {/* Library */}
                     <button
                       onClick={() => {
                         showToast('Library feature coming soon!', 'info')
                         setSidebarOpen(false)
                       }}
-                      className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[14px] font-normal text-[#ececec] hover:bg-[#212121]/60 hover:text-white transition duration-150"
+                      className="w-full flex items-center gap-4 px-3 py-2.5 rounded-xl text-[15px] font-medium text-slate-100 hover:bg-white/10 transition text-left cursor-pointer"
                     >
-                      <LibraryIcon size={18} className="text-[#ececec] shrink-0" />
+                      <LibraryIcon size={20} className="text-slate-200 shrink-0" />
                       <span>Library</span>
                     </button>
 
                     {/* Projects */}
-                    <div className="w-full flex items-center justify-between rounded-xl hover:bg-[#212121]/60 transition duration-150 text-[#ececec] hover:text-white">
-                      <button
-                        onClick={() => {
-                          showToast('Projects folder coming soon!', 'info')
-                          setSidebarOpen(false)
-                        }}
-                        className="flex-1 flex items-center gap-3 px-3 py-2 text-[14px] font-normal text-[#ececec] text-left"
-                      >
-                        <Folder size={18} className="text-[#ececec] shrink-0" />
-                        <span>Projects</span>
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          void createChat()
-                          setSidebarOpen(false)
-                        }}
-                        className="p-1 text-slate-400 hover:text-white mr-2"
-                        title="Create chat in projects"
-                      >
-                        <Plus size={15} />
-                      </button>
-                    </div>
+                    <button
+                      onClick={() => {
+                        showToast('Projects folder coming soon!', 'info')
+                        setSidebarOpen(false)
+                      }}
+                      className="w-full flex items-center gap-4 px-3 py-2.5 rounded-xl text-[15px] font-medium text-slate-100 hover:bg-white/10 transition text-left cursor-pointer"
+                    >
+                      <Folder size={20} className="text-slate-200 shrink-0" />
+                      <span>Projects</span>
+                    </button>
 
+                    {/* Scheduled */}
+                    <button
+                      onClick={() => {
+                        showToast('Scheduled tasks coming soon!', 'info')
+                        setSidebarOpen(false)
+                      }}
+                      className="w-full flex items-center gap-4 px-3 py-2.5 rounded-xl text-[15px] font-medium text-slate-100 hover:bg-white/10 transition text-left cursor-pointer"
+                    >
+                      <Clock size={20} className="text-slate-200 shrink-0" />
+                      <span>Scheduled</span>
+                    </button>
 
+                    {/* Plugins */}
+                    <button
+                      onClick={() => {
+                        showToast('Plugins store coming soon!', 'info')
+                        setSidebarOpen(false)
+                      }}
+                      className="w-full flex items-center gap-4 px-3 py-2.5 rounded-xl text-[15px] font-medium text-slate-100 hover:bg-white/10 transition text-left cursor-pointer"
+                    >
+                      <AtSign size={20} className="text-slate-200 shrink-0" />
+                      <span>Plugins</span>
+                    </button>
+
+                    {/* More */}
+                    <button
+                      onClick={() => {
+                        setIsSettingsOpen(true)
+                        setSidebarOpen(false)
+                      }}
+                      className="w-full flex items-center gap-4 px-3 py-2.5 rounded-xl text-[15px] font-medium text-slate-100 hover:bg-white/10 transition text-left cursor-pointer"
+                    >
+                      <MoreHorizontal size={20} className="text-slate-200 shrink-0" />
+                      <span>More</span>
+                    </button>
                   </div>
 
                   {/* Search Input Box */}
-                  <div className="px-1 pb-1 pt-1">
+                  <div className="px-1 py-1">
                     <div className="relative">
-                      <Search className="absolute top-1/2 left-3 -translate-y-1/2 text-slate-500" size={14} />
+                      <Search className="absolute top-1/2 left-3 -translate-y-1/2 text-slate-400" size={15} />
                       <input
                         id="sidebar-search-input-mobile"
                         value={sidebarSearchQuery}
                         onChange={(e) => setSidebarSearchQuery(e.target.value)}
-                        className="input-glass min-h-[34px] w-full rounded-xl pr-3 pl-8 text-[13px] placeholder:text-slate-400 focus:outline-none"
+                        className="w-full min-h-[36px] bg-[#1a1a1a] border border-white/10 rounded-xl pr-3 pl-9 text-xs text-white placeholder:text-slate-400 focus:outline-none focus:border-indigo-500/50"
                         placeholder="Search chats..."
                       />
                       {sidebarSearchQuery && (
@@ -1279,8 +1338,8 @@ export function DashboardPage() {
                     </div>
                   </div>
 
-                  {/* Chat History Group list (Pinned & Recents) */}
-                  <div className="space-y-4">
+                  {/* Chat History List (Pinned & Recents) */}
+                  <div className="space-y-4 pt-1">
                     {isLoadingChats ? (
                       <div className="space-y-2 px-2">
                         {[1, 2, 3].map((i) => (
@@ -1288,23 +1347,22 @@ export function DashboardPage() {
                         ))}
                       </div>
                     ) : filteredChats.length === 0 ? (
-                      <p className="text-[12px] text-slate-500 text-center py-6">No chats recorded.</p>
+                      <p className="text-xs text-slate-500 text-center py-6">No chats recorded.</p>
                     ) : (
                       <>
-                        {/* Pinned Chats */}
+                        {/* Pinned Section */}
                         {pinnedChats.length > 0 && (
-                          <div className="space-y-0.5">
-                            <div className="flex items-center gap-1.5 px-3 pt-2 pb-1 text-[13.5px] font-semibold text-white select-none">
-                              <span>Pinned</span>
-                              <ChevronDown size={14} className="text-slate-400 shrink-0" />
+                          <div className="space-y-1">
+                            <div className="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider select-none">
+                              Pinned
                             </div>
                             {pinnedChats.map(renderSidebarChatItem)}
                           </div>
                         )}
 
-                        {/* Grouped Unpinned Chats (Recents) */}
-                        <div className="space-y-3">
-                          <div className="px-3 pt-2 pb-1 text-[13.5px] font-semibold text-white select-none">
+                        {/* Recents Section */}
+                        <div className="space-y-1">
+                          <div className="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider select-none">
                             Recents
                           </div>
                           {groupedUnpinnedChats.map((group) => (
@@ -1318,8 +1376,8 @@ export function DashboardPage() {
                   </div>
                 </div>
 
-                {/* Mobile Drawer Footer User Panel */}
-                <div className="p-2 border-t border-white/[0.05] bg-transparent flex flex-col gap-2 relative flex-shrink-0">
+                {/* Mobile Drawer Footer User Panel (Transparent, no border, no container box) */}
+                <div className="p-3 bg-transparent border-none flex items-center justify-between relative shrink-0">
                   {/* Interactive Profile Dropdown Popover */}
                   <AnimatePresence>
                     {mobileProfileDropdownOpen && (
@@ -1333,7 +1391,7 @@ export function DashboardPage() {
                           animate={{ opacity: 1, y: 0, scale: 1 }}
                           exit={{ opacity: 0, y: 8, scale: 0.95 }}
                           transition={{ duration: 0.15 }}
-                          className="absolute bottom-full left-2 right-2 mb-2 z-50 rounded-2xl border border-white/10 bg-[#212121] p-1.5 shadow-2xl"
+                          className="absolute bottom-full left-3 right-3 mb-2 z-50 rounded-2xl border border-white/10 bg-[#1e1e1e] p-1.5 shadow-2xl"
                         >
                           <button
                             onClick={() => {
@@ -1341,9 +1399,9 @@ export function DashboardPage() {
                               setSidebarOpen(false)
                               setMobileProfileDropdownOpen(false)
                             }}
-                            className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium text-slate-200 hover:bg-white/5 transition text-left animate-none"
+                            className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-medium text-slate-200 hover:bg-white/10 transition text-left cursor-pointer"
                           >
-                            <User size={14} className="text-slate-400" />
+                            <User size={15} className="text-slate-400" />
                             Profile
                           </button>
                           <button
@@ -1352,9 +1410,9 @@ export function DashboardPage() {
                               setSidebarOpen(false)
                               setMobileProfileDropdownOpen(false)
                             }}
-                            className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium text-slate-200 hover:bg-white/5 transition text-left animate-none"
+                            className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-medium text-slate-200 hover:bg-white/10 transition text-left cursor-pointer"
                           >
-                            <Settings size={14} className="text-slate-400" />
+                            <Settings size={15} className="text-slate-400" />
                             Settings
                           </button>
                           <button
@@ -1363,21 +1421,21 @@ export function DashboardPage() {
                               setSidebarOpen(false)
                               showToast('For help, contact support@novamind.ai', 'info')
                             }}
-                            className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium text-slate-200 hover:bg-white/5 transition text-left animate-none"
+                            className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-medium text-slate-200 hover:bg-white/10 transition text-left cursor-pointer"
                           >
-                            <HelpCircle size={14} className="text-slate-400" />
+                            <HelpCircle size={15} className="text-slate-400" />
                             Help
                           </button>
-                          <div className="h-px bg-white/5 my-1" />
+                          <div className="h-px bg-white/10 my-1" />
                           <button
                             onClick={() => {
                               setMobileProfileDropdownOpen(false)
                               setSidebarOpen(false)
                               void logout()
                             }}
-                            className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium text-rose-400 hover:bg-rose-500/10 transition text-left animate-none"
+                            className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-medium text-rose-400 hover:bg-rose-500/10 transition text-left cursor-pointer"
                           >
-                            <LogOut size={14} />
+                            <LogOut size={15} />
                             Logout
                           </button>
                         </motion.div>
@@ -1385,27 +1443,32 @@ export function DashboardPage() {
                     )}
                   </AnimatePresence>
 
-                  <div
-                    onClick={() => setMobileProfileDropdownOpen(!mobileProfileDropdownOpen)}
-                    className="flex items-center gap-2.5 p-2 rounded-xl border border-transparent hover:border-indigo-500/20 hover:bg-indigo-500/[0.03] hover:shadow-[0_0_12px_rgba(99,102,241,0.08)] cursor-pointer transition-all duration-300 select-none group"
+                  {/* Left: Blue Chat Button (Matching Image) */}
+                  <button
+                    onClick={() => {
+                      void createChat()
+                      setSidebarOpen(false)
+                    }}
+                    className="flex items-center gap-2.5 px-5 py-2.5 rounded-full bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-bold text-sm shadow-xl active:scale-95 transition cursor-pointer"
                   >
-                    <div className="size-8 overflow-hidden rounded-full bg-slate-800 shrink-0 border border-white/10 group-hover:border-indigo-500/30 transition-colors duration-300">
-                      {user?.avatar ? (
-                        <img src={user.avatar} alt="User Avatar" className="size-full object-cover" />
-                      ) : (
-                        <div className="grid size-full place-items-center text-slate-350 group-hover:text-indigo-300 transition-colors duration-300">
-                          <User size={13} />
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0 flex items-center justify-between">
-                      <div>
-                        <p className="truncate text-xs font-semibold text-slate-200 group-hover:text-white transition-colors duration-300">{user?.name}</p>
-                        <p className="truncate text-[9px] text-slate-500 group-hover:text-indigo-400/70 transition-colors duration-300">Go</p>
+                    <SquarePen size={18} className="text-white shrink-0" />
+                    <span>Chat</span>
+                  </button>
+
+                  {/* Right: User Avatar Circular Button (Matching Image) */}
+                  <button
+                    onClick={() => setMobileProfileDropdownOpen(!mobileProfileDropdownOpen)}
+                    className="size-10 rounded-full overflow-hidden border border-white/20 bg-slate-800 shrink-0 hover:border-white/40 active:scale-95 transition cursor-pointer"
+                    title="User Account"
+                  >
+                    {user?.avatar ? (
+                      <img src={user.avatar} alt="User Avatar" className="size-full object-cover" />
+                    ) : (
+                      <div className="grid size-full place-items-center text-white font-bold text-xs bg-indigo-600">
+                        {user?.name?.[0]?.toUpperCase() || 'U'}
                       </div>
-                      <MoreHorizontal size={14} className="text-slate-400 group-hover:text-white transition-colors duration-300 shrink-0" />
-                    </div>
-                  </div>
+                    )}
+                  </button>
                 </div>
               </motion.aside>
             </div>
@@ -1419,34 +1482,37 @@ export function DashboardPage() {
             paddingLeft: isFullscreen
               ? '0px'
               : (isDesktop || isTablet
-                ? (sidebarCollapsed ? '75px' : '280px')
+                ? (sidebarCollapsed ? '64px' : (isTablet ? '240px' : '260px'))
                 : '0px')
           }}
         >
 
-          {/* FLOATING CONTROLS (Zero-height container, no header bar/background) */}
-          <header className="sticky top-0 z-20 w-full px-4 md:px-6 py-3 flex items-center justify-between bg-transparent border-none select-none pointer-events-none -mb-14">
-            <div className="flex items-center gap-2.5 pointer-events-auto">
-              {/* Sidebar mobile toggle trigger */}
-              {!isFullscreen && (
+          {/* FLOATING CONTROLS HEADER */}
+          <header className="sticky top-0 z-20 w-full px-3 md:px-6 py-3 flex items-center justify-between bg-transparent border-none select-none pointer-events-none -mb-14">
+            {/* MOBILE ONLY TOP LEFT SIDEBAR OPENER CIRCULAR BUTTON */}
+            {!isFullscreen && (
+              <div className="flex md:hidden items-center pointer-events-auto select-none">
                 <button
+                  type="button"
                   onClick={() => setSidebarOpen(true)}
-                  className="rounded-lg p-1.5 text-slate-300 hover:bg-white/10 hover:text-white transition md:hidden shrink-0 cursor-pointer"
-                  title="Open menu"
+                  className="size-9.5 rounded-full bg-[#212121]/90 backdrop-blur-md border border-white/15 text-slate-200 hover:text-white transition flex items-center justify-center cursor-pointer shadow-lg active:scale-95"
+                  title="Open sidebar"
                 >
-                  <Menu size={18} />
+                  <PanelLeft size={18} />
                 </button>
-              )}
+              </div>
+            )}
 
-              {/* NovaMind AI Model Selector Header Dropdown (Matching User Images 1 & 2) */}
+            {/* DESKTOP TOP HEADER CONTROL */}
+            <div className="hidden md:flex items-center gap-2.5 pointer-events-auto min-w-0">
               <ModelSelector
                 selectedModelId={selectedModel.id}
                 onSelectModel={(model) => setSelectedModel(model)}
               />
             </div>
 
-            {/* Right side Actions (Fullscreen) */}
-            <div className="flex items-center gap-1.5 pointer-events-auto">
+            {/* Right side Actions (Fullscreen toggle) */}
+            <div className="hidden md:flex items-center gap-1.5 pointer-events-auto shrink-0">
               <button
                 onClick={toggleFullscreen}
                 className="rounded-lg px-2.5 py-1.5 text-slate-300 hover:bg-white/10 hover:text-white transition shrink-0 flex items-center gap-1.5 text-xs font-medium cursor-pointer"
@@ -1454,26 +1520,26 @@ export function DashboardPage() {
               >
                 {isFullscreen ? (
                   <>
-                    <Minimize2 size={14} className="text-indigo-400" />
-                    <span className="hidden sm:inline">Exit Fullscreen</span>
+                    <Minimize2 size={16} className="text-indigo-400" />
+                    <span>Exit Fullscreen</span>
                   </>
                 ) : (
                   <>
-                    <Maximize2 size={14} />
-                    <span className="hidden sm:inline">Fullscreen</span>
+                    <Maximize2 size={16} />
+                    <span>Fullscreen</span>
                   </>
                 )}
               </button>
             </div>
           </header>
 
-          {/* CHAT MESSAGES PANEL */}
+          {/* CHAT MESSAGES PANEL - Centered Reading Experience */}
           <div
             ref={chatViewportRef}
             onScroll={handleScroll}
-            className="flex-1 overflow-y-auto scrollbar-thin px-4 pt-14 md:px-6 pb-32 md:pb-36 flex flex-col items-center gap-4 md:gap-6 bg-transparent"
+            className="flex-1 overflow-y-auto scrollbar-thin px-4 sm:px-6 lg:px-8 pt-16 sm:pt-20 md:pt-24 pb-32 md:pb-36 flex flex-col items-center gap-4 md:gap-6 bg-transparent"
           >
-            <div className="w-full max-w-[768px] mx-auto flex-1 flex flex-col justify-between">
+            <div className="w-full max-w-full sm:max-w-[720px] md:max-w-[800px] lg:max-w-[850px] xl:max-w-[900px] mx-auto flex-1 flex flex-col justify-between">
 
               {isLoadingMessages ? (
                 <div className="space-y-8 py-6 flex-1 select-none">
@@ -1513,8 +1579,11 @@ export function DashboardPage() {
 
                 /* CHAT MESSAGES LIST */
                 <div className="space-y-6">
-                  {filteredMessages.map((message: ExtendedMessage) => {
+                  {filteredMessages.map((message: ExtendedMessage, index: number) => {
                     const isUser = message.role === 'user'
+                    const isLastMessage = index === filteredMessages.length - 1
+                    const isGeneratingThisMessage = isSending && isLastMessage && !isUser
+
                     return (
                       <motion.article
                         key={message.id}
@@ -1522,356 +1591,405 @@ export function DashboardPage() {
                         data-msg-id={message.id}
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className={`w-full ${isUser ? 'flex flex-col items-end' : 'flex gap-4'}`}
+                        className={`w-full ${isUser ? 'flex flex-col items-end' : 'flex flex-col items-start'}`}
                       >
                         {isUser ? (
-                          /* User Prompt Bubble */
-                          <div
-                            className={`${editingMessageId === message.id ? 'w-full max-w-[85%] md:max-w-[70%]' : 'max-w-[85%] md:max-w-[70%] w-fit'} user-message-bubble rounded-2xl px-4 py-2.5 shadow-md relative group select-text break-words animate-fade-in-up`}
-                            style={{
-                              contentVisibility: 'auto',
-                              containIntrinsicSize: '100px',
-                              background: uiSettings.userBubbleColor && uiSettings.userBubbleColor !== 'default' ? uiSettings.userBubbleColor : undefined
-                            }}
-                          >
-                            {editingMessageId === message.id ? (
-                              <div className="space-y-2.5">
-                                <textarea
-                                  value={editContent}
-                                  onChange={(e) => setEditContent(e.target.value)}
-                                  className="w-full min-h-[80px] bg-slate-900 text-white rounded-lg p-2.5 text-sm focus:outline-none border border-indigo-500/40"
-                                  autoFocus
-                                />
-                                <div className="flex justify-end gap-2 text-xs">
-                                  <button
-                                    onClick={() => setEditingMessageId(null)}
-                                    className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 font-medium transition"
-                                  >
-                                    Cancel
-                                  </button>
-                                  <button
-                                    onClick={() => handleSaveEditPrompt(message.id)}
-                                    className="px-3 py-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white font-medium transition"
-                                  >
-                                    Save & Submit
-                                  </button>
+                          /* User Prompt Bubble (ChatGPT 100% Pill Design with bottom hover action bar) */
+                          <div className="group relative flex flex-col items-end w-full space-y-1">
+                            <div
+                              className={`${editingMessageId === message.id ? 'w-full max-w-[92%] sm:max-w-[85%] md:max-w-[70%]' : 'max-w-[92%] sm:max-w-[85%] md:max-w-[70%] w-fit'} user-message-bubble rounded-[24px] px-4.5 py-2.5 sm:px-5 sm:py-2.5 shadow-sm relative select-text break-words overflow-wrap-anywhere animate-fade-in-up`}
+                              style={{
+                                contentVisibility: 'auto',
+                                containIntrinsicSize: '100px',
+                                backgroundColor: uiSettings.userBubbleColor && uiSettings.userBubbleColor !== 'default' ? uiSettings.userBubbleColor : undefined
+                              }}
+                            >
+                              {editingMessageId === message.id ? (
+                                <div className="space-y-2.5">
+                                  <textarea
+                                    value={editContent}
+                                    onChange={(e) => setEditContent(e.target.value)}
+                                    className="w-full min-h-[80px] bg-slate-900 text-white rounded-lg p-2.5 text-sm focus:outline-none border border-indigo-500/40"
+                                    autoFocus
+                                  />
+                                  <div className="flex justify-end gap-2 text-xs">
+                                    <button
+                                      onClick={() => setEditingMessageId(null)}
+                                      className="px-3 py-1.5 rounded-lg border border-white/10 text-slate-300 hover:bg-white/10 hover:text-white transition font-medium"
+                                    >
+                                      Cancel
+                                    </button>
+                                    <button
+                                      onClick={() => handleSaveEditPrompt(message.id)}
+                                      className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold shadow-md transition"
+                                    >
+                                      Submit
+                                    </button>
+                                  </div>
                                 </div>
+                              ) : (
+                                <>
+                                  {/* Content */}
+                                  <p className="whitespace-pre-wrap text-sm sm:text-base text-slate-100 font-normal leading-normal">
+                                    {message.content}
+                                  </p>
+
+                                  {/* User Attachments - Image previews directly */}
+                                  {message.attachments && message.attachments.some((f) => f.type.startsWith('image/') && !deletedAttachmentUrls.includes(f.url)) && (
+                                    <div className="mt-2.5 flex flex-wrap gap-2 justify-end">
+                                      {message.attachments.filter((f) => f.type.startsWith('image/') && !deletedAttachmentUrls.includes(f.url)).map((file, idx) => (
+                                        <div key={idx} className="relative group">
+                                          <button
+                                            onClick={() => {
+                                              setActiveImageViewerUrl(file.url)
+                                              setActiveImageViewerName(file.name)
+                                              setZoomScale(1)
+                                              setImageFullscreen(false)
+                                            }}
+                                            className="block overflow-hidden rounded-xl border border-white/10 hover:border-white/20 transition max-w-[280px] shadow-lg text-left"
+                                          >
+                                            <img src={file.url} alt={file.name} className="max-h-56 w-full object-cover rounded-xl" />
+                                          </button>
+                                          {/* Quick Actions overlay for images */}
+                                          <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-[#1e1e1e]/85 backdrop-blur rounded-lg p-1 border border-white/10 shadow-lg">
+                                            <button onClick={() => handleDownloadAttachment(file.url, file.name)} className="p-1 hover:bg-white/10 rounded text-slate-350 hover:text-white" title="Download"><FileDown size={11} /></button>
+                                            <button onClick={() => handleCopyLink(file.url)} className="p-1 hover:bg-white/10 rounded text-slate-350 hover:text-white" title="Copy Link"><Copy size={11} /></button>
+                                            <button onClick={() => handleDeleteAttachment(file.url)} className="p-1 hover:bg-rose-500/25 rounded text-rose-400 hover:text-rose-300" title="Delete"><Trash2 size={11} /></button>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+
+                                  {/* User Attachments - Files rendering */}
+                                  {message.attachments && message.attachments.some((f) => !f.type.startsWith('image/') && !deletedAttachmentUrls.includes(f.url)) && (
+                                    <div className="mt-2.5 flex flex-wrap gap-2 justify-end">
+                                      {message.attachments.filter((f) => !f.type.startsWith('image/') && !deletedAttachmentUrls.includes(f.url)).map((file, idx) => {
+                                        const isVideo = file.type.startsWith('video/')
+                                        const isPdf = file.type === 'application/pdf' || file.name.endsWith('.pdf')
+
+                                        return (
+                                          <div
+                                            key={idx}
+                                            className="relative group flex items-center gap-3 rounded-xl border border-white/10 bg-slate-950/60 p-3 pr-4 hover:bg-slate-950 transition min-w-[220px] max-w-[280px] text-left"
+                                          >
+                                            <div className="size-10 rounded-lg bg-white/5 flex items-center justify-center shrink-0">
+                                              {isVideo ? (
+                                                <Play size={18} className="text-indigo-400" />
+                                              ) : isPdf ? (
+                                                <FileText size={18} className="text-rose-400" />
+                                              ) : (
+                                                <FileText size={18} className="text-cyan-400" />
+                                              )}
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                              <p className="truncate text-xs font-semibold text-white">{file.name}</p>
+                                              <p className="text-[10px] text-slate-500 font-medium">{(file.size / 1024).toFixed(1)} KB</p>
+                                            </div>
+                                            {/* Quick Actions overlay for files */}
+                                            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-[#212121] border border-white/10 rounded-lg p-1 shadow-lg">
+                                              {isVideo ? (
+                                                <button
+                                                  onClick={() => {
+                                                    setActiveVideoPlayerUrl(file.url)
+                                                    setActiveVideoPlayerName(file.name)
+                                                  }}
+                                                  className="p-1 hover:bg-white/10 rounded text-indigo-400"
+                                                  title="Play Video"
+                                                >
+                                                  <Play size={11} />
+                                                </button>
+                                              ) : (
+                                                <button
+                                                  onClick={() => window.open(file.url, '_blank')}
+                                                  className="p-1 hover:bg-white/10 rounded text-cyan-400"
+                                                  title="Open in Tab"
+                                                >
+                                                  <ArrowUp size={11} className="rotate-45" />
+                                                </button>
+                                              )}
+                                              <button onClick={() => handleDownloadAttachment(file.url, file.name)} className="p-1 hover:bg-white/10 rounded text-slate-300" title="Download"><FileDown size={11} /></button>
+                                              <button onClick={() => handleCopyLink(file.url)} className="p-1 hover:bg-white/10 rounded text-slate-300" title="Copy Link"><Copy size={11} /></button>
+                                              <button onClick={() => handleDeleteAttachment(file.url)} className="p-1 hover:bg-rose-500/20 rounded text-rose-400" title="Delete"><Trash2 size={11} /></button>
+                                            </div>
+                                          </div>
+                                        )
+                                      })}
+                                    </div>
+                                  )}
+                                </>
+                              )}
+                            </div>
+
+                            {/* 3 Hover Option Buttons below user bubble (Copy, Share, Edit) matching exact user screenshot */}
+                            {editingMessageId !== message.id && (
+                              <div className="flex items-center gap-2 mt-1 mr-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-slate-400 select-none">
+                                {/* 1. Copy */}
+                                <button
+                                  onClick={() => handleCopyResponse(message.content)}
+                                  className="p-1 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition duration-150 active:scale-95 cursor-pointer"
+                                  title="Copy prompt"
+                                >
+                                  <Copy size={15} />
+                                </button>
+
+                                {/* 2. Share */}
+                                <button
+                                  onClick={() => {
+                                    handleCopyLink(window.location.href)
+                                    showToast('Prompt link copied to clipboard', 'success')
+                                  }}
+                                  className="p-1 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition duration-150 active:scale-95 cursor-pointer"
+                                  title="Share prompt"
+                                >
+                                  <Upload size={15} />
+                                </button>
+
+                                {/* 3. Edit */}
+                                <button
+                                  onClick={() => {
+                                    setEditingMessageId(message.id)
+                                    setEditContent(message.content)
+                                  }}
+                                  className="p-1 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition duration-150 active:scale-95 cursor-pointer"
+                                  title="Edit prompt"
+                                >
+                                  <Edit3 size={15} />
+                                </button>
                               </div>
-                            ) : (
-                              <>
-                                {/* Actions/Details Header */}
-                                <div className="flex items-center justify-between text-[10px] text-slate-400 font-medium select-none">
-                                  <button
-                                    onClick={() => {
-                                      setEditingMessageId(message.id)
-                                      setEditContent(message.content)
-                                    }}
-                                    className="opacity-0 group-hover:opacity-100 transition-opacity duration-150 text-indigo-400 hover:underline hover:text-indigo-300 text-left font-semibold"
-                                  >
-                                    Edit
-                                  </button>
-                                  <div className="opacity-0 group-hover:opacity-100 transition duration-150 flex items-center gap-2">
-                                    <span>{formatTime(message.created_at)}</span>
-                                  </div>
-                                </div>
-                                {/* Content */}
-                                <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-100">
-                                  {message.content}
-                                </p>
-
-                                {/* User Attachments - Image previews directly */}
-                                {message.attachments && message.attachments.some((f) => f.type.startsWith('image/') && !deletedAttachmentUrls.includes(f.url)) && (
-                                  <div className="mt-2.5 flex flex-wrap gap-2 justify-end">
-                                    {message.attachments.filter((f) => f.type.startsWith('image/') && !deletedAttachmentUrls.includes(f.url)).map((file, idx) => (
-                                      <div key={idx} className="relative group">
-                                        <button
-                                          onClick={() => {
-                                            setActiveImageViewerUrl(file.url)
-                                            setActiveImageViewerName(file.name)
-                                            setZoomScale(1)
-                                            setImageFullscreen(false)
-                                          }}
-                                          className="block overflow-hidden rounded-xl border border-white/10 hover:border-white/20 transition max-w-[280px] shadow-lg text-left"
-                                        >
-                                          <img src={file.url} alt={file.name} className="max-h-56 w-full object-cover rounded-xl" />
-                                        </button>
-                                        {/* Quick Actions overlay for images */}
-                                        <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-[#1e1e1e]/85 backdrop-blur rounded-lg p-1 border border-white/10 shadow-lg">
-                                          <button onClick={() => handleDownloadAttachment(file.url, file.name)} className="p-1 hover:bg-white/10 rounded text-slate-350 hover:text-white" title="Download"><FileDown size={11} /></button>
-                                          <button onClick={() => handleCopyLink(file.url)} className="p-1 hover:bg-white/10 rounded text-slate-350 hover:text-white" title="Copy Link"><Copy size={11} /></button>
-                                          <button onClick={() => handleDeleteAttachment(file.url)} className="p-1 hover:bg-rose-500/25 rounded text-rose-400 hover:text-rose-300" title="Delete"><Trash2 size={11} /></button>
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-
-                                {/* User Attachments - Files rendering */}
-                                {message.attachments && message.attachments.some((f) => !f.type.startsWith('image/') && !deletedAttachmentUrls.includes(f.url)) && (
-                                  <div className="mt-2.5 flex flex-wrap gap-2 justify-end">
-                                    {message.attachments.filter((f) => !f.type.startsWith('image/') && !deletedAttachmentUrls.includes(f.url)).map((file, idx) => {
-                                      const isVideo = file.type.startsWith('video/')
-                                      const isPdf = file.type === 'application/pdf' || file.name.endsWith('.pdf')
-
-                                      return (
-                                        <div
-                                          key={idx}
-                                          className="relative group flex items-center gap-3 rounded-xl border border-white/10 bg-slate-950/60 p-3 pr-4 hover:bg-slate-950 transition min-w-[220px] max-w-[280px] text-left"
-                                        >
-                                          <div className="size-10 rounded-lg bg-white/5 flex items-center justify-center shrink-0">
-                                            {isVideo ? (
-                                              <Play size={18} className="text-indigo-400" />
-                                            ) : isPdf ? (
-                                              <FileText size={18} className="text-rose-400" />
-                                            ) : (
-                                              <FileText size={18} className="text-cyan-400" />
-                                            )}
-                                          </div>
-                                          <div className="min-w-0 flex-1">
-                                            <p className="truncate text-xs font-semibold text-white">{file.name}</p>
-                                            <p className="text-[10px] text-slate-500 font-medium">{(file.size / 1024).toFixed(1)} KB</p>
-                                          </div>
-                                          {/* Quick Actions overlay for files */}
-                                          <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-[#212121] border border-white/10 rounded-lg p-1 shadow-lg">
-                                            {isVideo ? (
-                                              <button
-                                                onClick={() => {
-                                                  setActiveVideoPlayerUrl(file.url)
-                                                  setActiveVideoPlayerName(file.name)
-                                                }}
-                                                className="p-1 hover:bg-white/10 rounded text-indigo-400"
-                                                title="Play Video"
-                                              >
-                                                <Play size={11} />
-                                              </button>
-                                            ) : (
-                                              <button
-                                                onClick={() => window.open(file.url, '_blank')}
-                                                className="p-1 hover:bg-white/10 rounded text-cyan-400"
-                                                title="Open in Tab"
-                                              >
-                                                <ArrowUp size={11} className="rotate-45" />
-                                              </button>
-                                            )}
-                                            <button onClick={() => handleDownloadAttachment(file.url, file.name)} className="p-1 hover:bg-white/10 rounded text-slate-300" title="Download"><FileDown size={11} /></button>
-                                            <button onClick={() => handleCopyLink(file.url)} className="p-1 hover:bg-white/10 rounded text-slate-300" title="Copy Link"><Copy size={11} /></button>
-                                            <button onClick={() => handleDeleteAttachment(file.url)} className="p-1 hover:bg-rose-500/20 rounded text-rose-400" title="Delete"><Trash2 size={11} /></button>
-                                          </div>
-                                        </div>
-                                      )
-                                    })}
-                                  </div>
-                                )}
-                              </>
                             )}
                           </div>
                         ) : (
-                          /* Assistant Response (Plain backdrop) */
-                          <>
-                            {/* AI Avatar */}
-                            <div className="size-8 rounded-full bg-slate-900 border border-white/10 overflow-hidden shrink-0 flex items-center justify-center select-none">
-                              <Sparkles size={14} className="text-indigo-400 animate-pulse" />
+                          /* Assistant Response (ChatGPT 100% Centered Layout matching Image 1) */
+                          <div
+                            className="w-full space-y-2 group relative assistant-message-card py-1 animate-fade-in-up"
+                            style={{ contentVisibility: 'auto', containIntrinsicSize: '150px' }}
+                          >
+                            {/* Metadata Header with Inline AI Sparkles Icon */}
+                            <div className="flex items-center justify-between text-[10px] font-semibold text-slate-400 select-none pb-1">
+                              <div className="flex items-center gap-2">
+                                <div className="size-5 rounded-full bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 p-[1px] shrink-0 flex items-center justify-center">
+                                  <div className="size-full bg-[#121214] rounded-full flex items-center justify-center">
+                                    <Sparkles size={10} className="text-indigo-400" />
+                                  </div>
+                                </div>
+                                <span className="bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 px-2 py-0.5 rounded-full font-mono text-[9px] uppercase tracking-wider font-bold">
+                                  {selectedModel.name || 'NovaMind AI'}
+                                </span>
+                                {message.content && (
+                                  <span className="text-[10px] text-slate-500 font-medium hidden sm:inline">
+                                    {message.content.trim().split(/\s+/).filter(Boolean).length} words · {Math.max(1, Math.ceil(message.content.trim().split(/\s+/).filter(Boolean).length / 200))} min read
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-slate-500 font-medium">{formatTime(message.created_at)}</span>
+                              </div>
                             </div>
 
-                            {/* Content Block */}
-                            <div
-                              className="flex-1 space-y-2 max-w-[850px] group relative assistant-message-card py-1 px-1 sm:px-2 animate-fade-in-up"
-                              style={{ contentVisibility: 'auto', containIntrinsicSize: '150px' }}
-                            >
-                              {/* Metadata */}
-                              <div className="flex items-center justify-between text-[10px] font-semibold text-slate-500 select-none">
-                                <span className="uppercase tracking-wider">NovaMind AI</span>
-                                <div className="flex items-center gap-2">
-                                  <button
-                                    type="button"
-                                    onClick={() => speakText(message.id, message.content)}
-                                    className={`rounded p-0.5 transition hover:bg-white/5 ${speakingMessageId === message.id ? 'text-cyan-400' : 'text-slate-400 hover:text-white'
-                                      }`}
-                                    title="Listen to response"
-                                  >
-                                    {speakingMessageId === message.id ? <VolumeX size={12} /> : <Volume2 size={12} />}
-                                  </button>
-                                  <span>{formatTime(message.created_at)}</span>
-                                </div>
-                              </div>
+                            {/* Message Body with Markdown support */}
+                            <div className="text-sm sm:text-base text-[#ececec] font-normal leading-[1.8] tracking-wide select-text">
+                              <MarkdownRenderer content={message.content} />
+                            </div>
 
-                              {/* Message Body with Markdown support */}
-                              <div className="text-sm sm:text-base text-[#ececec] font-normal leading-[1.8] tracking-wide select-text">
-                                <MarkdownRenderer content={message.content} />
+                            {/* Assistant Attachments - Image previews directly */}
+                            {message.attachments && message.attachments.some((f) => f.type.startsWith('image/') && !deletedAttachmentUrls.includes(f.url)) && (
+                              <div className="mt-3 flex flex-wrap gap-2 pt-2 border-t border-white/5 justify-start">
+                                {message.attachments.filter((f) => f.type.startsWith('image/') && !deletedAttachmentUrls.includes(f.url)).map((file, idx) => (
+                                  <div key={idx} className="relative group">
+                                    <button
+                                      onClick={() => {
+                                        setActiveImageViewerUrl(file.url)
+                                        setActiveImageViewerName(file.name)
+                                        setZoomScale(1)
+                                        setImageFullscreen(false)
+                                      }}
+                                      className="block overflow-hidden rounded-xl border border-white/10 hover:border-white/20 transition max-w-[280px] shadow-lg text-left"
+                                    >
+                                      <img src={file.url} alt={file.name} className="max-h-56 w-full object-cover rounded-xl" />
+                                    </button>
+                                    {/* Quick Actions overlay for images */}
+                                    <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-[#1e1e1e]/85 backdrop-blur rounded-lg p-1 border border-white/10 shadow-lg">
+                                      <button onClick={() => handleDownloadAttachment(file.url, file.name)} className="p-1 hover:bg-white/10 rounded text-slate-350 hover:text-white" title="Download"><FileDown size={11} /></button>
+                                      <button onClick={() => handleCopyLink(file.url)} className="p-1 hover:bg-white/10 rounded text-slate-350 hover:text-white" title="Copy Link"><Copy size={11} /></button>
+                                      <button onClick={() => handleDeleteAttachment(file.url)} className="p-1 hover:bg-rose-500/25 rounded text-rose-400 hover:text-rose-300" title="Delete"><Trash2 size={11} /></button>
+                                    </div>
+                                  </div>
+                                ))}
                               </div>
+                            )}
 
-                              {/* Assistant Attachments - Image previews directly */}
-                              {message.attachments && message.attachments.some((f) => f.type.startsWith('image/') && !deletedAttachmentUrls.includes(f.url)) && (
-                                <div className="mt-3 flex flex-wrap gap-2 pt-2 border-t border-white/5 justify-start">
-                                  {message.attachments.filter((f) => f.type.startsWith('image/') && !deletedAttachmentUrls.includes(f.url)).map((file, idx) => (
-                                    <div key={idx} className="relative group">
-                                      <button
-                                        onClick={() => {
-                                          setActiveImageViewerUrl(file.url)
-                                          setActiveImageViewerName(file.name)
-                                          setZoomScale(1)
-                                          setImageFullscreen(false)
-                                        }}
-                                        className="block overflow-hidden rounded-xl border border-white/10 hover:border-white/20 transition max-w-[280px] shadow-lg text-left"
-                                      >
-                                        <img src={file.url} alt={file.name} className="max-h-56 w-full object-cover rounded-xl" />
-                                      </button>
-                                      {/* Quick Actions overlay for images */}
-                                      <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-[#1e1e1e]/85 backdrop-blur rounded-lg p-1 border border-white/10 shadow-lg">
-                                        <button onClick={() => handleDownloadAttachment(file.url, file.name)} className="p-1 hover:bg-white/10 rounded text-slate-350 hover:text-white" title="Download"><FileDown size={11} /></button>
-                                        <button onClick={() => handleCopyLink(file.url)} className="p-1 hover:bg-white/10 rounded text-slate-350 hover:text-white" title="Copy Link"><Copy size={11} /></button>
-                                        <button onClick={() => handleDeleteAttachment(file.url)} className="p-1 hover:bg-rose-500/25 rounded text-rose-400 hover:text-rose-300" title="Delete"><Trash2 size={11} /></button>
+                            {/* Assistant Attachments - Files rendering */}
+                            {message.attachments && message.attachments.some((f) => !f.type.startsWith('image/') && !deletedAttachmentUrls.includes(f.url)) && (
+                              <div className="mt-2.5 flex flex-wrap gap-2 justify-start">
+                                {message.attachments.filter((f) => !f.type.startsWith('image/') && !deletedAttachmentUrls.includes(f.url)).map((file, idx) => {
+                                  const isVideo = file.type.startsWith('video/')
+                                  const isPdf = file.type === 'application/pdf' || file.name.endsWith('.pdf')
+
+                                  return (
+                                    <div
+                                      key={idx}
+                                      className="relative group flex items-center gap-3 rounded-xl border border-white/10 bg-slate-950/60 p-3 pr-4 hover:bg-slate-950 transition min-w-[220px] max-w-[280px]"
+                                    >
+                                      <div className="size-10 rounded-lg bg-white/5 flex items-center justify-center shrink-0">
+                                        {isVideo ? (
+                                          <Play size={18} className="text-indigo-400" />
+                                        ) : isPdf ? (
+                                          <FileText size={18} className="text-rose-400" />
+                                        ) : (
+                                          <FileText size={18} className="text-cyan-400" />
+                                        )}
+                                      </div>
+                                      <div className="min-w-0 flex-1">
+                                        <p className="truncate text-xs font-semibold text-white">{file.name}</p>
+                                        <p className="text-[10px] text-slate-500 font-medium">{(file.size / 1024).toFixed(1)} KB</p>
+                                      </div>
+                                      {/* Quick Actions overlay for files */}
+                                      <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-[#212121] border border-white/10 rounded-lg p-1 shadow-lg">
+                                        {isVideo ? (
+                                          <button
+                                            onClick={() => {
+                                              setActiveVideoPlayerUrl(file.url)
+                                              setActiveVideoPlayerName(file.name)
+                                            }}
+                                            className="p-1 hover:bg-white/10 rounded text-indigo-400"
+                                            title="Play Video"
+                                          >
+                                            <Play size={11} />
+                                          </button>
+                                        ) : (
+                                          <button
+                                            onClick={() => window.open(file.url, '_blank')}
+                                            className="p-1 hover:bg-white/10 rounded text-cyan-400"
+                                            title="Open in Tab"
+                                          >
+                                            <ArrowUp size={11} className="rotate-45" />
+                                          </button>
+                                        )}
+                                        <button onClick={() => handleDownloadAttachment(file.url, file.name)} className="p-1 hover:bg-white/10 rounded text-slate-300" title="Download"><FileDown size={11} /></button>
+                                        <button onClick={() => handleCopyLink(file.url)} className="p-1 hover:bg-white/10 rounded text-slate-300" title="Copy Link"><Copy size={11} /></button>
+                                        <button onClick={() => handleDeleteAttachment(file.url)} className="p-1 hover:bg-rose-500/20 rounded text-rose-400" title="Delete"><Trash2 size={11} /></button>
                                       </div>
                                     </div>
-                                  ))}
-                                </div>
-                              )}
+                                  )
+                                })}
+                              </div>
+                            )}
 
-                              {/* Assistant Attachments - Files rendering */}
-                              {message.attachments && message.attachments.some((f) => !f.type.startsWith('image/') && !deletedAttachmentUrls.includes(f.url)) && (
-                                <div className="mt-2.5 flex flex-wrap gap-2 justify-start">
-                                  {message.attachments.filter((f) => !f.type.startsWith('image/') && !deletedAttachmentUrls.includes(f.url)).map((file, idx) => {
-                                    const isVideo = file.type.startsWith('video/')
-                                    const isPdf = file.type === 'application/pdf' || file.name.endsWith('.pdf')
-
-                                    return (
-                                      <div
-                                        key={idx}
-                                        className="relative group flex items-center gap-3 rounded-xl border border-white/10 bg-slate-950/60 p-3 pr-4 hover:bg-slate-950 transition min-w-[220px] max-w-[280px]"
-                                      >
-                                        <div className="size-10 rounded-lg bg-white/5 flex items-center justify-center shrink-0">
-                                          {isVideo ? (
-                                            <Play size={18} className="text-indigo-400" />
-                                          ) : isPdf ? (
-                                            <FileText size={18} className="text-rose-400" />
-                                          ) : (
-                                            <FileText size={18} className="text-cyan-400" />
-                                          )}
-                                        </div>
-                                        <div className="min-w-0 flex-1">
-                                          <p className="truncate text-xs font-semibold text-white">{file.name}</p>
-                                          <p className="text-[10px] text-slate-500 font-medium">{(file.size / 1024).toFixed(1)} KB</p>
-                                        </div>
-                                        {/* Quick Actions overlay for files */}
-                                        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-[#212121] border border-white/10 rounded-lg p-1 shadow-lg">
-                                          {isVideo ? (
-                                            <button
-                                              onClick={() => {
-                                                setActiveVideoPlayerUrl(file.url)
-                                                setActiveVideoPlayerName(file.name)
-                                              }}
-                                              className="p-1 hover:bg-white/10 rounded text-indigo-400"
-                                              title="Play Video"
-                                            >
-                                              <Play size={11} />
-                                            </button>
-                                          ) : (
-                                            <button
-                                              onClick={() => window.open(file.url, '_blank')}
-                                              className="p-1 hover:bg-white/10 rounded text-cyan-400"
-                                              title="Open in Tab"
-                                            >
-                                              <ArrowUp size={11} className="rotate-45" />
-                                            </button>
-                                          )}
-                                          <button onClick={() => handleDownloadAttachment(file.url, file.name)} className="p-1 hover:bg-white/10 rounded text-slate-300" title="Download"><FileDown size={11} /></button>
-                                          <button onClick={() => handleCopyLink(file.url)} className="p-1 hover:bg-white/10 rounded text-slate-300" title="Copy Link"><Copy size={11} /></button>
-                                          <button onClick={() => handleDeleteAttachment(file.url)} className="p-1 hover:bg-rose-500/20 rounded text-rose-400" title="Delete"><Trash2 size={11} /></button>
-                                        </div>
-                                      </div>
-                                    )
-                                  })}
-                                </div>
-                              )}
-
-                              {/* Actions toolbar on Hover */}
-                              <div className="flex items-center gap-1.5 mt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-slate-400 select-none">
-                                <button
-                                  onClick={() => toggleLike(message.id)}
-                                  className={`p-1.5 rounded-lg hover:bg-white/5 hover:text-white transition duration-155 active:scale-90 ${likes[message.id] ? 'text-indigo-400 bg-indigo-500/10' : ''
-                                    }`}
-                                  title="Like"
-                                >
-                                  <ThumbsUp size={13} />
-                                </button>
-                                <button
-                                  onClick={() => toggleDislike(message.id)}
-                                  className={`p-1.5 rounded-lg hover:bg-white/5 hover:text-white transition duration-155 active:scale-90 ${dislikes[message.id] ? 'text-rose-400 bg-rose-500/10' : ''
-                                    }`}
-                                  title="Dislike"
-                                >
-                                  <ThumbsDown size={13} />
-                                </button>
+                            {/* Actions toolbar: ONLY show after response is fully generated */}
+                            {!isGeneratingThisMessage && (
+                              <div className="flex items-center gap-1.5 sm:gap-2.5 mt-2.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200 text-slate-400 select-none">
+                                {/* 1. Copy */}
                                 <button
                                   onClick={() => handleCopyResponse(message.content)}
-                                  className="p-1.5 rounded-lg hover:bg-white/5 hover:text-white transition duration-155 active:scale-95"
-                                  title="Copy Response"
+                                  className="p-1.5 rounded-lg hover:bg-white/10 hover:text-white transition duration-150 active:scale-95 cursor-pointer"
+                                  title="Copy response"
                                 >
-                                  <Copy size={13} />
-                                </button>
-                                <button
-                                  onClick={() => handleRegenerate(message)}
-                                  className="p-1.5 rounded-lg hover:bg-white/5 hover:text-white transition duration-155 active:scale-95"
-                                  title="Regenerate Response"
-                                >
-                                  <RefreshCw size={13} />
-                                </button>
-                                <button
-                                  onClick={() => handleEditPrompt(message)}
-                                  className="p-1.5 rounded-lg hover:bg-white/5 hover:text-white transition duration-155 active:scale-95"
-                                  title="Edit Prompt"
-                                >
-                                  <Edit3 size={13} />
+                                  <Copy size={16} />
                                 </button>
 
-                                {/* Download options dropdown */}
+                                {/* 2. ThumbsUp */}
+                                <button
+                                  onClick={() => toggleLike(message.id)}
+                                  className={`p-1.5 rounded-lg hover:bg-white/10 transition duration-150 active:scale-95 cursor-pointer ${likes[message.id] ? 'text-indigo-400 bg-indigo-500/10' : 'hover:text-white'
+                                    }`}
+                                  title="Good response"
+                                >
+                                  <ThumbsUp size={16} />
+                                </button>
+
+                                {/* 3. ThumbsDown */}
+                                <button
+                                  onClick={() => toggleDislike(message.id)}
+                                  className={`p-1.5 rounded-lg hover:bg-white/10 transition duration-150 active:scale-95 cursor-pointer ${dislikes[message.id] ? 'text-rose-400 bg-rose-500/10' : 'hover:text-white'
+                                    }`}
+                                  title="Bad response"
+                                >
+                                  <ThumbsDown size={16} />
+                                </button>
+
+                                {/* 4. Share / Export */}
+                                <button
+                                  onClick={() => {
+                                    handleCopyLink(window.location.href)
+                                    showToast('Share link copied to clipboard', 'success')
+                                  }}
+                                  className="p-1.5 rounded-lg hover:bg-white/10 hover:text-white transition duration-150 active:scale-95 cursor-pointer"
+                                  title="Share response"
+                                >
+                                  <Upload size={16} />
+                                </button>
+
+                                {/* 5. Regenerate */}
+                                <button
+                                  onClick={() => handleRegenerate(message)}
+                                  className="p-1.5 rounded-lg hover:bg-white/10 hover:text-white transition duration-150 active:scale-95 cursor-pointer"
+                                  title="Regenerate response"
+                                >
+                                  <RefreshCw size={16} />
+                                </button>
+
+                                {/* 6. More Options (...) */}
                                 <div className="relative">
                                   <button
                                     onClick={() => setOpenDownloadId(openDownloadId === message.id ? null : message.id)}
-                                    className="p-1.5 rounded-lg hover:bg-white/5 hover:text-white transition duration-155 active:scale-95 flex items-center gap-1"
-                                    title="Download Response"
+                                    className="p-1.5 rounded-lg hover:bg-white/10 hover:text-white transition duration-150 active:scale-95 cursor-pointer"
+                                    title="More options"
                                   >
-                                    <FileDown size={13} />
+                                    <MoreHorizontal size={16} />
                                   </button>
 
                                   {openDownloadId === message.id && (
                                     <>
                                       <div className="fixed inset-0 z-40" onClick={() => setOpenDownloadId(null)} />
-                                      <div className="absolute left-0 bottom-full mb-1.5 z-50 w-36 rounded-xl border border-white/10 bg-[#212121] p-1 shadow-2xl text-left">
+                                      <div className="absolute left-0 bottom-full mb-2 z-50 w-44 rounded-2xl border border-white/10 bg-[#212121] p-1.5 shadow-2xl text-left select-none space-y-0.5">
+                                        <button
+                                          onClick={() => {
+                                            handleEditPrompt(message)
+                                            setOpenDownloadId(null)
+                                          }}
+                                          className="w-full flex items-center gap-2.5 px-3 py-2 text-xs rounded-xl hover:bg-white/10 hover:text-white transition font-medium text-slate-300 cursor-pointer"
+                                        >
+                                          <Edit3 size={14} className="text-indigo-400" />
+                                          <span>Edit Prompt</span>
+                                        </button>
                                         <button
                                           onClick={() => {
                                             downloadTXT(message.content)
                                             setOpenDownloadId(null)
                                           }}
-                                          className="w-full text-left px-3 py-2 text-xs rounded-lg hover:bg-white/5 hover:text-white transition font-medium"
+                                          className="w-full flex items-center gap-2.5 px-3 py-2 text-xs rounded-xl hover:bg-white/10 hover:text-white transition font-medium text-slate-300 cursor-pointer"
                                         >
-                                          Text file (.txt)
+                                          <FileText size={14} className="text-slate-400" />
+                                          <span>Download (.txt)</span>
                                         </button>
                                         <button
                                           onClick={() => {
                                             downloadMD(message.content)
                                             setOpenDownloadId(null)
                                           }}
-                                          className="w-full text-left px-3 py-2 text-xs rounded-lg hover:bg-white/5 hover:text-white transition font-medium"
+                                          className="w-full flex items-center gap-2.5 px-3 py-2 text-xs rounded-xl hover:bg-white/10 hover:text-white transition font-medium text-slate-300 cursor-pointer"
                                         >
-                                          Markdown (.md)
+                                          <FileText size={14} className="text-purple-400" />
+                                          <span>Download (.md)</span>
                                         </button>
                                         <button
                                           onClick={() => {
                                             downloadPDF(message.content)
                                             setOpenDownloadId(null)
                                           }}
-                                          className="w-full text-left px-3 py-2 text-xs rounded-lg hover:bg-white/5 hover:text-white transition font-medium"
+                                          className="w-full flex items-center gap-2.5 px-3 py-2 text-xs rounded-xl hover:bg-white/10 hover:text-white transition font-medium text-slate-300 cursor-pointer"
                                         >
-                                          PDF Document (.pdf)
+                                          <FileText size={14} className="text-rose-400" />
+                                          <span>Download (.pdf)</span>
                                         </button>
                                       </div>
                                     </>
                                   )}
                                 </div>
                               </div>
-                            </div>
-                          </>
+                            )}
+                          </div>
                         )}
                       </motion.article>
                     )
@@ -1925,11 +2043,11 @@ export function DashboardPage() {
               left: isFullscreen
                 ? '0px'
                 : (isDesktop || isTablet
-                  ? (sidebarCollapsed ? '75px' : '280px')
+                  ? (sidebarCollapsed ? '64px' : (isTablet ? '240px' : '260px'))
                   : '0px')
             }}
           >
-            <div className="w-full max-w-[768px] mx-auto pointer-events-auto">
+            <div className="w-full max-w-full sm:max-w-[720px] md:max-w-[800px] lg:max-w-[850px] xl:max-w-[900px] mx-auto pointer-events-auto px-2 sm:px-0">
 
               {/* Pre-upload attachment file tags */}
               {pendingAttachments.length > 0 && (
@@ -1984,43 +2102,78 @@ export function DashboardPage() {
                 </div>
               )}
 
-              {/* Pill-shaped ChatGPT input form container */}
-              <div className="relative rounded-[26px] input-container-glass px-3.5 py-1.5">
+              {/* Pill-shaped ChatGPT input form container matching user screenshot */}
+              <div className="relative rounded-full input-container-glass px-3.5 py-1 shadow-xl">
                 <form
                   onSubmit={handleSend}
-                  className="flex items-center gap-2 min-h-[48px]"
+                  className="flex items-center gap-2 min-h-[40px]"
                 >
-                  {/* Plus button inside circular frame on the left */}
-                  <button
-                    type="button"
-                    onClick={() => triggerFileInput('all')}
-                    disabled={isSending || isUploadingFiles}
-                    className="size-7 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white transition flex items-center justify-center shrink-0"
-                    title="Attach files"
-                  >
-                    <Plus size={16} />
-                  </button>
+                  {/* Plus button on the left with popover menu */}
+                  <div className="relative shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setPlusMenuOpen((prev) => !prev)}
+                      disabled={isSending || isUploadingFiles}
+                      className={`size-7.5 sm:size-8 rounded-full hover:bg-white/10 text-slate-300 hover:text-white transition flex items-center justify-center shrink-0 cursor-pointer ${plusMenuOpen ? 'bg-white/15 text-white' : ''
+                        }`}
+                      title="Add attachments or templates"
+                    >
+                      <Plus size={18} className={`stroke-[2] transition-transform duration-200 ${plusMenuOpen ? 'rotate-45' : ''}`} />
+                    </button>
 
-                  {/* Prompt Templates Library Button */}
-                  <button
-                    type="button"
-                    onClick={() => setIsPromptLibraryOpen(true)}
-                    className="size-7 rounded-full border border-indigo-500/20 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 hover:text-indigo-300 transition flex items-center justify-center shrink-0 cursor-pointer"
-                    title="Prompt Templates Library"
-                  >
-                    <Sparkles size={14} />
-                  </button>
+                    {/* Plus Menu Popover */}
+                    <AnimatePresence>
+                      {plusMenuOpen && (
+                        <>
+                          <div
+                            className="fixed inset-0 z-40"
+                            onClick={() => setPlusMenuOpen(false)}
+                          />
+                          <motion.div
+                            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                            transition={{ duration: 0.15 }}
+                            className="absolute bottom-full left-0 mb-3 z-50 w-52 rounded-2xl border border-white/10 bg-[#212121] p-1.5 shadow-2xl space-y-0.5 select-none"
+                          >
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setPlusMenuOpen(false)
+                                triggerFileInput('all')
+                              }}
+                              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-200 hover:bg-white/10 hover:text-white transition text-left cursor-pointer"
+                            >
+                              <Paperclip size={16} className="text-indigo-400 shrink-0" />
+                              <span>Photos & Files</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setPlusMenuOpen(false)
+                                setIsPromptLibraryOpen(true)
+                              }}
+                              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-200 hover:bg-white/10 hover:text-white transition text-left cursor-pointer"
+                            >
+                              <Sparkles size={16} className="text-indigo-400 shrink-0" />
+                              <span>Prompt Templates</span>
+                            </button>
+                          </motion.div>
+                        </>
+                      )}
+                    </AnimatePresence>
+                  </div>
 
                   {/* Hidden inputs */}
                   <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" multiple />
                   <input type="file" ref={imageInputRef} onChange={handleFileChange} accept="image/*" className="hidden" multiple />
 
-                  {/* Input TextArea */}
+                  {/* Input TextArea with clean 'Ask anything...' placeholder */}
                   <textarea
                     ref={textareaRef}
                     rows={1}
-                    className="flex-1 resize-none bg-transparent py-2.5 px-1 text-sm leading-relaxed text-[#ececec] placeholder-[#9b9b9b] focus:outline-none scrollbar-none"
-                    placeholder="Ask anything... (Press Ctrl + K for Commands)"
+                    className="flex-1 resize-none bg-transparent py-1.5 px-1 text-xs sm:text-sm leading-relaxed text-[#ececec] placeholder-[#8e8e93] focus:outline-none scrollbar-none font-sans"
+                    placeholder="Ask anything..."
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
                     onKeyDown={handleKeyDown}
@@ -2028,30 +2181,30 @@ export function DashboardPage() {
                   />
 
                   {/* Actions on the right inside input box */}
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-1.5 shrink-0">
                     {/* Voice mic */}
                     <button
                       type="button"
                       onClick={() => toggleSpeechRecognition(handleVoiceTranscript)}
-                      className={`rounded-full p-2 transition shrink-0 ${isListening ? 'bg-red-500/20 text-red-400 animate-pulse' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}
+                      className={`size-8 rounded-full flex items-center justify-center transition shrink-0 cursor-pointer ${isListening ? 'bg-red-500/20 text-red-400 animate-pulse' : 'text-slate-300 hover:bg-white/10 hover:text-white'}`}
                       title="Voice dictation"
                     >
                       <Mic size={16} />
                     </button>
 
-                    {/* Send Button */}
+                    {/* Send Button (Blue circle matching ChatGPT design in screenshot) */}
                     <button
                       type="submit"
                       disabled={isSending || isUploadingFiles || (!prompt.trim() && pendingAttachments.length === 0)}
-                      className={`size-8 rounded-full flex items-center justify-center transition-all duration-200 send-btn-animated shadow-md ${(!prompt.trim() && pendingAttachments.length === 0)
-                        ? 'bg-white/10 text-white/40 cursor-not-allowed'
-                        : 'bg-white text-black hover:bg-neutral-200'
+                      className={`size-8 rounded-full flex items-center justify-center transition-all duration-200 send-btn-animated shadow-md cursor-pointer ${(!prompt.trim() && pendingAttachments.length === 0)
+                        ? 'bg-[#2563eb]/40 text-white/40 cursor-not-allowed'
+                        : 'bg-[#2563eb] hover:bg-[#1d4ed8] text-white active:scale-95'
                         }`}
                     >
                       {isSending || isUploadingFiles ? (
-                        <Loader2 size={14} className="animate-spin text-current" />
+                        <Loader2 size={15} className="animate-spin text-white" />
                       ) : (
-                        <ArrowUp size={16} className="text-current stroke-[2.5]" />
+                        <ArrowUp size={16} className="text-white stroke-[2.5]" />
                       )}
                     </button>
                   </div>

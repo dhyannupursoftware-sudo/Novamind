@@ -136,24 +136,24 @@ export function ProfilePage() {
   const lastChatOpened = chats.length > 0 ? chats[0].title : 'No active chats'
 
   return (
-    <main className="min-h-screen text-[#ececec] bg-[#171717] font-sans relative overflow-x-hidden p-6 md:p-10">
+    <main className="min-h-screen text-[#ececec] bg-[#171717] font-sans relative overflow-x-hidden p-4 sm:p-6 md:p-10">
       {/* Background glow effects */}
       <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-indigo-500/5 blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-[#8B5CF6]/5 blur-[120px] pointer-events-none" />
 
-      <div className="max-w-5xl mx-auto space-y-8 relative z-10">
+      <div className="max-w-5xl mx-auto space-y-6 sm:space-y-8 relative z-10">
         
         {/* Navigation Back Button */}
         <button 
           onClick={() => navigate('/dashboard')}
-          className="flex items-center gap-2.5 px-4 py-2 rounded-xl border border-white/5 bg-white/[0.02] hover:bg-white/5 hover:text-white transition duration-200 text-slate-400 font-semibold text-xs cursor-pointer select-none"
+          className="flex items-center gap-2.5 px-4 py-2 rounded-xl border border-white/5 bg-white/[0.02] hover:bg-white/5 hover:text-white transition duration-200 text-slate-400 font-semibold text-xs cursor-pointer select-none min-h-[44px]"
         >
           <ArrowLeft size={14} />
           <span>Back to Chat</span>
         </button>
 
         {/* Top Header Card (User Info with Avatar) */}
-        <div className="glass rounded-[28px] p-6 md:p-8 flex flex-col md:flex-row items-center md:items-start gap-6 md:gap-8 border border-white/10 shadow-2xl relative overflow-hidden">
+        <div className="glass rounded-[28px] p-4 sm:p-6 md:p-8 flex flex-col sm:flex-row items-center sm:items-start gap-5 sm:gap-8 border border-white/10 shadow-2xl relative overflow-hidden">
           
           {/* Subtle decoration lines inside the card */}
           <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-br from-indigo-500/10 to-purple-500/0 rounded-full blur-2xl pointer-events-none" />
@@ -162,14 +162,14 @@ export function ProfilePage() {
           <div className="relative group shrink-0">
             <div 
               onClick={handleAvatarClick}
-              className="size-28 rounded-full border-2 border-indigo-500/30 p-1 cursor-pointer transition-all duration-300 hover:border-indigo-500 hover:scale-105"
+              className="size-24 sm:size-28 rounded-full border-2 border-indigo-500/30 p-1 cursor-pointer transition-all duration-300 hover:border-indigo-500 hover:scale-105"
             >
               <div className="relative size-full overflow-hidden rounded-full bg-slate-900 flex items-center justify-center">
                 {avatar ? (
                   <img src={avatar} alt="User Avatar" className="size-full object-cover" />
                 ) : (
                   <div className="text-slate-400">
-                    <User size={42} />
+                    <User size={38} />
                   </div>
                 )}
 
@@ -196,9 +196,9 @@ export function ProfilePage() {
           </div>
 
           {/* Identity details */}
-          <div className="text-center md:text-left space-y-2.5 flex-1">
+          <div className="text-center sm:text-left space-y-2.5 flex-1">
             <div className="space-y-1">
-              <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white">
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-black tracking-tight text-white">
                 {user?.name || 'User Profile'}
               </h1>
               <p className="text-xs font-semibold tracking-wider text-indigo-400 uppercase">
@@ -206,19 +206,19 @@ export function ProfilePage() {
               </p>
             </div>
             
-            <div className="flex flex-wrap items-center justify-center md:justify-start gap-x-4 gap-y-2 text-xs text-slate-400">
+            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-x-4 gap-y-2 text-xs text-slate-400">
               <span className="flex items-center gap-1.5">
                 <Mail size={13} className="text-slate-500" />
                 {user?.email}
               </span>
-              <span className="hidden md:inline text-slate-700">•</span>
+              <span className="hidden sm:inline text-slate-700">•</span>
               <span className="flex items-center gap-1.5">
                 <Calendar size={13} className="text-slate-500" />
                 Member since {creationDate}
               </span>
             </div>
 
-            <div className="pt-2 flex justify-center md:justify-start">
+            <div className="pt-2 flex justify-center sm:justify-start">
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
                 <Sparkles size={11} className="animate-pulse" />
                 NovaMind AI Premium
@@ -228,10 +228,10 @@ export function ProfilePage() {
         </div>
 
         {/* Content Section: Form & Statistics Cards */}
-        <div className="grid md:grid-cols-12 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8">
           
           {/* Left Side: Edit Profile Forms (Col 7) */}
-          <div className="md:col-span-7 space-y-6">
+          <div className="lg:col-span-7 space-y-6">
             <div className="glass rounded-[28px] p-6 border border-white/5 space-y-6">
               
               <div className="border-b border-white/5 pb-4">
@@ -314,7 +314,7 @@ export function ProfilePage() {
           </div>
 
           {/* Right Side: Statistics & Activities (Col 5) */}
-          <div className="md:col-span-5 space-y-6">
+          <div className="lg:col-span-5 space-y-6">
             
             {/* Stats Cards grid */}
             <div className="glass rounded-[28px] p-6 border border-white/5 space-y-4">

@@ -78,7 +78,7 @@ export function AuthLayout({ children, footer, title }: AuthLayoutProps) {
           </div>
 
           {/* Card Wrapper */}
-          <div className="rounded-[24px] border border-white/[0.06] bg-[#121214]/65 backdrop-blur-2xl p-8 sm:p-10 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)] relative overflow-hidden">
+          <div className="rounded-[24px] border border-white/[0.06] bg-[#121214]/65 backdrop-blur-2xl p-6 sm:p-10 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)] relative overflow-hidden">
 
             <h2 className="text-xl font-extrabold text-white tracking-tight">{title}</h2>
             <div className="mt-6">{children}</div>

@@ -60,43 +60,43 @@ export function CodePreviewModal({ isOpen, onClose, code, language }: CodePrevie
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 sm:p-6">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-2 sm:p-6">
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.95 }}
           className={`flex flex-col bg-[#0c0d12] border border-white/10 rounded-2xl shadow-2xl overflow-hidden transition-all duration-300 ${
-            isFullscreen ? 'w-full h-full rounded-none' : 'w-full max-w-5xl h-[85vh]'
+            isFullscreen ? 'w-full h-full rounded-none' : 'w-full max-w-5xl h-[88vh] sm:h-[85vh]'
           }`}
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-5 py-3.5 bg-white/[0.03] border-b border-white/10 select-none">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-semibold uppercase tracking-wider">
-                <Code size={14} />
-                <span>{language || 'Code'} Artifact</span>
+          <div className="flex items-center justify-between px-3 sm:px-5 py-2.5 sm:py-3.5 bg-white/[0.03] border-b border-white/10 select-none flex-wrap gap-2">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[10px] sm:text-xs font-semibold uppercase tracking-wider shrink-0">
+                <Code size={13} />
+                <span className="truncate">{language || 'Code'}</span>
               </div>
 
               {/* Tabs */}
               {isHtmlSvgWeb && (
-                <div className="flex items-center p-1 bg-white/5 rounded-lg border border-white/5 text-xs font-medium">
+                <div className="flex items-center p-0.5 sm:p-1 bg-white/5 rounded-lg border border-white/5 text-[11px] sm:text-xs font-medium">
                   <button
                     onClick={() => setActiveTab('preview')}
-                    className={`flex items-center gap-1.5 px-3 py-1 rounded-md transition ${
+                    className={`flex items-center gap-1 px-2 sm:px-3 py-1 rounded-md transition ${
                       activeTab === 'preview' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
                     }`}
                   >
-                    <Play size={12} />
-                    <span>Live Preview</span>
+                    <Play size={11} />
+                    <span>Preview</span>
                   </button>
                   <button
                     onClick={() => setActiveTab('code')}
-                    className={`flex items-center gap-1.5 px-3 py-1 rounded-md transition ${
+                    className={`flex items-center gap-1 px-2 sm:px-3 py-1 rounded-md transition ${
                       activeTab === 'code' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
                     }`}
                   >
-                    <Code size={12} />
-                    <span>Source Code</span>
+                    <Code size={11} />
+                    <span>Source</span>
                   </button>
                 </div>
               )}

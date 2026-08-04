@@ -94,10 +94,10 @@ export function ArtifactsDrawer({
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 220 }}
-            className="fixed top-0 right-0 h-screen w-full lg:w-[50vw] xl:w-[45vw] bg-[#0d0d0d] border-l border-white/10 shadow-2xl z-[999] flex flex-col overflow-hidden"
+            className="fixed top-0 right-0 h-screen w-full sm:w-[500px] lg:w-[50vw] xl:w-[45vw] bg-[#0d0d0d] border-l border-white/10 shadow-2xl z-[999] flex flex-col overflow-hidden"
           >
             {/* Header Toolbar */}
-            <div className="h-[56px] px-4 border-b border-white/10 flex items-center justify-between bg-[#171717] shrink-0 select-none">
+            <div className="min-h-[56px] px-3 sm:px-4 py-2 border-b border-white/10 flex items-center justify-between bg-[#171717] shrink-0 select-none flex-wrap gap-2">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="size-8 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0">
                   <Play size={16} />

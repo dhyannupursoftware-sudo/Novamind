@@ -12,6 +12,8 @@ interface CodeBlockProps {
 
 export function CodeBlock({ language, code }: CodeBlockProps) {
   const [copied, setCopied] = useState(false)
+  const [wordWrap, setWordWrap] = useState(false)
+  const [showLineNumbers, setShowLineNumbers] = useState(true)
 
   const handleCopy = async () => {
     try {
@@ -23,29 +25,30 @@ export function CodeBlock({ language, code }: CodeBlockProps) {
     }
   }
 
+  const langLower = language.trim().toLowerCase()
+  const isTerminal = ['bash', 'sh', 'shell', 'terminal', 'cmd', 'powershell'].includes(langLower)
+
   const displayLanguage = (() => {
-    const lang = language.trim().toLowerCase()
-    if (lang === 'js' || lang === 'javascript') return 'JavaScript'
-    if (lang === 'ts' || lang === 'typescript') return 'TypeScript'
-    if (lang === 'tsx' || lang === 'react') return 'React TSX'
-    if (lang === 'php' || lang === 'laravel') return 'PHP/Laravel'
-    if (lang === 'html') return 'HTML'
-    if (lang === 'css') return 'CSS'
-    if (lang === 'sql') return 'SQL'
-    if (lang === 'json') return 'JSON'
-    if (lang === 'bash' || lang === 'sh') return 'Terminal'
-    if (lang === 'python' || lang === 'py') return 'Python'
-    if (lang === 'docker' || lang === 'dockerfile') return 'Docker'
-    if (lang === 'yaml' || lang === 'yml') return 'YAML'
+    if (langLower === 'js' || langLower === 'javascript') return 'JavaScript'
+    if (langLower === 'ts' || langLower === 'typescript') return 'TypeScript'
+    if (langLower === 'tsx' || langLower === 'react') return 'React TSX'
+    if (langLower === 'php' || langLower === 'laravel') return 'PHP/Laravel'
+    if (langLower === 'html') return 'HTML'
+    if (langLower === 'css') return 'CSS'
+    if (langLower === 'sql') return 'SQL'
+    if (langLower === 'json') return 'JSON'
+    if (isTerminal) return 'Terminal / Shell'
+    if (langLower === 'python' || langLower === 'py') return 'Python'
+    if (langLower === 'docker' || langLower === 'dockerfile') return 'Docker'
+    if (langLower === 'yaml' || langLower === 'yml') return 'YAML'
     return language || 'Code'
   })()
 
   // Highlight the code using highlight.js
   const highlightedHtml = (() => {
-    const lang = language.trim().toLowerCase()
-    if (lang && hljs.getLanguage(lang)) {
+    if (langLower && hljs.getLanguage(langLower)) {
       try {
-        return hljs.highlight(code, { language: lang }).value
+        return hljs.highlight(code, { language: langLower }).value
       } catch (e) {
         console.error(e)
       }
@@ -53,16 +56,55 @@ export function CodeBlock({ language, code }: CodeBlockProps) {
     return hljs.highlightAuto(code).value
   })()
 
-  const isWebCode = ['html', 'js', 'javascript', 'svg', 'xml', 'css'].includes(language.trim().toLowerCase())
+  const isWebCode = ['html', 'js', 'javascript', 'svg', 'xml', 'css'].includes(langLower)
+  const codeLines = code.split('\n')
 
   return (
-    <div className="group relative my-6 flex flex-col rounded-2xl border border-white/[0.08] bg-[#0c0c0e] shadow-xl overflow-hidden text-left font-sans">
-      {/* Code Block Header Badge bar */}
-      <div className="flex items-center justify-between bg-white/[0.02] px-4 py-2.5 text-xs text-slate-400 border-b border-white/[0.06] select-none">
-        <span className="font-mono text-[10px] tracking-wider uppercase font-semibold text-slate-400">
-          {displayLanguage}
-        </span>
+    <div className="group relative my-6 flex flex-col rounded-2xl border border-white/[0.08] bg-[#0c0c0e] shadow-2xl overflow-hidden text-left font-sans">
+      {/* Code Block Header */}
+      <div className="flex items-center justify-between bg-white/[0.03] px-4 py-2.5 text-xs text-slate-400 border-b border-white/[0.06] select-none">
+        {isTerminal ? (
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
+              <span className="size-3 rounded-full bg-red-500/80 inline-block" />
+              <span className="size-3 rounded-full bg-yellow-500/80 inline-block" />
+              <span className="size-3 rounded-full bg-green-500/80 inline-block" />
+            </div>
+            <span className="ml-2 font-mono text-[11px] font-semibold text-slate-400">
+              Terminal
+            </span>
+          </div>
+        ) : (
+          <span className="font-mono text-[10px] tracking-wider uppercase font-semibold text-indigo-300 bg-indigo-500/10 px-2 py-0.5 rounded-md border border-indigo-500/20">
+            {displayLanguage}
+          </span>
+        )}
+
         <div className="flex items-center gap-2">
+          {/* Word Wrap Toggle */}
+          <button
+            type="button"
+            onClick={() => setWordWrap((prev) => !prev)}
+            className={`px-2 py-1 rounded-md text-[10px] font-mono font-semibold transition cursor-pointer ${
+              wordWrap ? 'bg-white/15 text-white' : 'bg-white/5 text-slate-400 hover:text-white'
+            }`}
+            title="Toggle word wrap"
+          >
+            Wrap
+          </button>
+
+          {/* Line Numbers Toggle */}
+          <button
+            type="button"
+            onClick={() => setShowLineNumbers((prev) => !prev)}
+            className={`px-2 py-1 rounded-md text-[10px] font-mono font-semibold transition cursor-pointer ${
+              showLineNumbers ? 'bg-white/15 text-white' : 'bg-white/5 text-slate-400 hover:text-white'
+            }`}
+            title="Toggle line numbers"
+          >
+            # Lines
+          </button>
+
           {isWebCode && (
             <button
               type="button"
@@ -77,6 +119,7 @@ export function CodeBlock({ language, code }: CodeBlockProps) {
               <span className="text-[10px]">▶ Live Preview</span>
             </button>
           )}
+
           <button
             type="button"
             onClick={handleCopy}
@@ -91,21 +134,30 @@ export function CodeBlock({ language, code }: CodeBlockProps) {
             ) : (
               <>
                 <Copy size={12} />
-                <span className="text-[10px]">Copy code</span>
+                <span className="text-[10px]">Copy</span>
               </>
             )}
           </button>
         </div>
       </div>
 
-      {/* Code content viewport */}
-      <div className="overflow-x-auto p-4 font-mono text-xs sm:text-sm leading-relaxed text-slate-300 scrollbar-thin">
-        <pre className="whitespace-pre">
-          <code
-            className="hljs"
-            dangerouslySetInnerHTML={{ __html: highlightedHtml }}
-          />
-        </pre>
+      {/* Code Content Viewport */}
+      <div className="overflow-x-auto p-4 font-mono text-xs sm:text-sm leading-relaxed text-slate-300 scrollbar-thin max-h-[550px] overflow-y-auto">
+        <div className="flex">
+          {showLineNumbers && (
+            <div className="select-none pr-4 text-right text-slate-600 font-mono text-xs space-y-0.5 shrink-0 border-r border-white/5 mr-4">
+              {codeLines.map((_, i) => (
+                <div key={i}>{i + 1}</div>
+              ))}
+            </div>
+          )}
+          <pre className={`flex-1 ${wordWrap ? 'whitespace-pre-wrap break-words' : 'whitespace-pre'}`}>
+            <code
+              className="hljs"
+              dangerouslySetInnerHTML={{ __html: highlightedHtml }}
+            />
+          </pre>
+        </div>
       </div>
     </div>
   )
@@ -166,8 +218,8 @@ export function MarkdownRenderer({ content }: { content: string }) {
         remarkPlugins={[remarkGfm]}
         components={{
           // Custom heading styles
-          h1: ({ children }) => <h1 className="text-2xl sm:text-3xl font-extrabold text-white mt-8 mb-4 tracking-tight leading-snug">{children}</h1>,
-          h2: ({ children }) => <h2 className="text-xl sm:text-2xl font-bold text-white mt-6 mb-3 tracking-tight leading-snug">{children}</h2>,
+          h1: ({ children }) => <h1 className="text-2xl sm:text-3xl font-extrabold text-white mt-8 mb-4 tracking-tight leading-snug border-l-4 border-indigo-500 pl-3.5">{children}</h1>,
+          h2: ({ children }) => <h2 className="text-xl sm:text-2xl font-bold text-white mt-6 mb-3 tracking-tight leading-snug border-l-3 border-purple-500/80 pl-3">{children}</h2>,
           h3: ({ children }) => <h3 className="text-lg sm:text-xl font-semibold text-slate-100 mt-5 mb-2">{children}</h3>,
           h4: ({ children }) => <h4 className="text-base sm:text-lg font-semibold text-slate-200 mt-4 mb-2">{children}</h4>,
           h5: ({ children }) => <h5 className="text-sm sm:text-base font-semibold text-slate-350 mt-3 mb-1.5">{children}</h5>,

@@ -53,6 +53,14 @@ const PROMPT_TEMPLATES: PromptTemplate[] = [
     icon: GraduationCap,
   },
   {
+    id: 'ai-mentor',
+    title: 'Intelligent AI Mentor & Interactive Tutor Mode',
+    category: 'Education',
+    description: 'Transform AI into a patient, supportive mentor that teaches step-by-step with scores, feedback, and challenges.',
+    prompt: 'Please act as an intelligent, friendly, patient, and supportive mentor. Help me learn [Topic/Language/Subject]. Teach me step-by-step, give examples, test me with practice questions, score my answers, and guide me until I master it!',
+    icon: GraduationCap,
+  },
+  {
     id: 'brainstorm-startup',
     title: 'SaaS Feature & Architecture Brainstorming',
     category: 'Creative',
@@ -86,34 +94,34 @@ export function PromptLibraryModal({ isOpen, onClose, onSelectPrompt }: PromptLi
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 sm:p-6">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-3 sm:p-6">
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.95 }}
-          className="w-full max-w-3xl bg-[#0c0d12] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]"
+          className="w-full max-w-3xl bg-[#0c0d12] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[88vh] sm:max-h-[85vh]"
         >
           {/* Modal Header */}
-          <div className="flex items-center justify-between px-6 py-4 bg-white/[0.03] border-b border-white/10 select-none">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+          <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 bg-white/[0.03] border-b border-white/10 select-none">
+            <div className="flex items-center gap-2.5 min-w-0 pr-2">
+              <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 shrink-0">
                 <Sparkles size={20} />
               </div>
-              <div>
-                <h3 className="text-lg font-bold text-white leading-snug">Prompt Templates Library</h3>
-                <p className="text-xs text-slate-400">Choose from curated prompts to boost productivity</p>
+              <div className="min-w-0">
+                <h3 className="text-base sm:text-lg font-bold text-white leading-snug truncate">Prompt Templates Library</h3>
+                <p className="text-[11px] sm:text-xs text-slate-400 truncate">Choose from curated prompts to boost productivity</p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition"
+              className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition shrink-0"
             >
               <X size={18} />
             </button>
           </div>
 
           {/* Search & Filters */}
-          <div className="p-6 border-b border-white/5 space-y-4 bg-[#0a0b0f]">
+          <div className="p-4 sm:p-6 border-b border-white/5 space-y-3 sm:space-y-4 bg-[#0a0b0f]">
             <div className="relative">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
               <input
@@ -121,16 +129,16 @@ export function PromptLibraryModal({ isOpen, onClose, onSelectPrompt }: PromptLi
                 placeholder="Search templates..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-indigo-500 transition"
+                className="w-full pl-10 pr-4 py-2 sm:py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-indigo-500 transition"
               />
             </div>
 
-            <div className="flex flex-wrap gap-2">
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
               {categories.map((cat) => (
                 <button
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold shrink-0 transition ${
                     selectedCategory === cat
                       ? 'bg-indigo-600 text-white shadow-md'
                       : 'bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white'
@@ -143,7 +151,7 @@ export function PromptLibraryModal({ isOpen, onClose, onSelectPrompt }: PromptLi
           </div>
 
           {/* Templates Grid */}
-          <div className="flex-1 overflow-y-auto p-6 grid grid-cols-1 md:grid-cols-2 gap-4 scrollbar-thin bg-[#08090d]">
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 scrollbar-thin bg-[#08090d]">
             {filteredPrompts.map((tmpl) => {
               const IconComp = tmpl.icon
               return (

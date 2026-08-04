@@ -145,7 +145,7 @@ export function ProfileModal({ isOpen, onClose }: ModalProps) {
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
@@ -161,13 +161,13 @@ export function ProfileModal({ isOpen, onClose }: ModalProps) {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="relative z-10 w-full max-w-4xl h-[85vh] md:h-[80vh] rounded-[24px] border border-white/10 bg-[#171717] text-white shadow-2xl flex flex-col overflow-hidden"
+            className="relative z-10 w-full max-w-4xl h-[88vh] sm:h-[85vh] md:h-[80vh] rounded-[24px] border border-white/10 bg-[#171717] text-white shadow-2xl flex flex-col overflow-hidden"
           >
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-white/5 px-6 py-5 select-none">
+            <div className="flex items-center justify-between border-b border-white/5 px-4 sm:px-6 py-4 sm:py-5 select-none">
               <div className="flex items-center gap-2">
                 <div className="size-2 rounded-full bg-indigo-500 animate-pulse" />
-                <h3 className="text-base font-bold text-white tracking-wide">NovaMind Profile Console</h3>
+                <h3 className="text-sm sm:text-base font-bold text-white tracking-wide">NovaMind Profile Console</h3>
               </div>
               <button
                 type="button"
@@ -179,7 +179,7 @@ export function ProfileModal({ isOpen, onClose }: ModalProps) {
             </div>
 
             {/* Profile Content Body */}
-            <div className="grid md:grid-cols-12 gap-6 p-6 flex-1 min-h-0 overflow-y-auto scrollbar-thin">
+            <div className="grid md:grid-cols-12 gap-4 sm:gap-6 p-4 sm:p-6 flex-1 min-h-0 overflow-y-auto scrollbar-thin">
               
               {/* Profile card and Form (Col 7) */}
               <div className="md:col-span-7 space-y-6">
@@ -516,7 +516,7 @@ export function SettingsModal({ isOpen, onClose }: ModalProps) {
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
           {/* Overlay */}
           <motion.div
             initial={{ opacity: 0 }}
@@ -532,13 +532,13 @@ export function SettingsModal({ isOpen, onClose }: ModalProps) {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="relative z-10 w-full max-w-4xl h-[85vh] md:h-[80vh] rounded-[24px] border border-white/10 bg-[#171717] text-white shadow-2xl flex flex-col overflow-hidden"
+            className="relative z-10 w-full max-w-4xl h-[88vh] sm:h-[85vh] md:h-[80vh] rounded-[24px] border border-white/10 bg-[#171717] text-white shadow-2xl flex flex-col overflow-hidden"
           >
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-white/5 px-6 py-5 select-none">
+            <div className="flex items-center justify-between border-b border-white/5 px-4 sm:px-6 py-4 sm:py-5 select-none">
               <div className="flex items-center gap-2">
                 <Globe className="text-indigo-400 animate-pulse" size={18} />
-                <h3 className="text-base font-bold text-white tracking-wide">NovaMind System Console</h3>
+                <h3 className="text-sm sm:text-base font-bold text-white tracking-wide">NovaMind System Console</h3>
               </div>
               <button
                 type="button"
@@ -553,7 +553,7 @@ export function SettingsModal({ isOpen, onClose }: ModalProps) {
             <div className="grid md:grid-cols-12 flex-1 min-h-0 overflow-y-auto md:overflow-hidden">
               
               {/* Tabs list (Col 4) */}
-              <nav className="md:col-span-4 bg-white/[0.01] border-b md:border-b-0 md:border-r border-white/5 p-4 flex flex-row overflow-x-auto md:flex-col gap-1.5 select-none overflow-y-auto md:h-full shrink-0 scrollbar-none whitespace-nowrap">
+              <nav className="md:col-span-4 bg-white/[0.01] border-b md:border-b-0 md:border-r border-white/5 p-2 sm:p-4 flex flex-row overflow-x-auto md:flex-col gap-1.5 select-none md:h-full shrink-0 scrollbar-none whitespace-nowrap">
                 {tabs.map((tab) => {
                   const Icon = tab.icon
                   const isActive = activeTab === tab.id
@@ -561,7 +561,7 @@ export function SettingsModal({ isOpen, onClose }: ModalProps) {
                     <button
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id)}
-                      className={`flex shrink-0 items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide border transition-all duration-150 text-left cursor-pointer ${
+                      className={`flex shrink-0 items-center gap-2.5 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl text-xs font-semibold tracking-wide border transition-all duration-150 text-left cursor-pointer ${
                         isActive 
                           ? 'bg-indigo-500/10 text-indigo-300 border-indigo-500/20 font-bold' 
                           : 'border-transparent text-slate-450 text-slate-400 hover:bg-white/5 hover:text-slate-200'
@@ -575,7 +575,7 @@ export function SettingsModal({ isOpen, onClose }: ModalProps) {
               </nav>
 
               {/* Tab Display Panel (Col 8) */}
-              <div className="md:col-span-8 p-6 md:p-8 overflow-y-auto md:h-full scrollbar-thin">
+              <div className="md:col-span-8 p-4 sm:p-6 md:p-8 overflow-y-auto md:h-full scrollbar-thin">
                 
                 {/* Tab: Appearance */}
                 {activeTab === 'appearance' && (
@@ -754,12 +754,12 @@ export function SettingsModal({ isOpen, onClose }: ModalProps) {
                     </div>
 
                     {/* Auto scroll */}
-                    <div className="flex items-center justify-between p-4 rounded-xl border border-white/5 bg-white/[0.01]">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-xl border border-white/5 bg-white/[0.01]">
                       <div>
                         <span className="text-xs font-bold text-slate-200 block">Auto Scroll to Bottom</span>
                         <span className="text-[9px] text-slate-500">Autoscroll viewport as new output streams</span>
                       </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
+                      <label className="relative inline-flex items-center cursor-pointer shrink-0 self-start sm:self-auto">
                         <input
                           type="checkbox"
                           checked={uiSettings.autoScroll}
@@ -771,12 +771,12 @@ export function SettingsModal({ isOpen, onClose }: ModalProps) {
                     </div>
 
                     {/* Thinking Indicator */}
-                    <div className="flex items-center justify-between p-4 rounded-xl border border-white/5 bg-white/[0.01]">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-xl border border-white/5 bg-white/[0.01]">
                       <div>
                         <span className="text-xs font-bold text-slate-200 block">Thinking Dot Indicator</span>
                         <span className="text-[9px] text-slate-500">Show floating placeholders during prompt load</span>
                       </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
+                      <label className="relative inline-flex items-center cursor-pointer shrink-0 self-start sm:self-auto">
                         <input
                           type="checkbox"
                           checked={uiSettings.showTypingIndicator}
@@ -788,12 +788,12 @@ export function SettingsModal({ isOpen, onClose }: ModalProps) {
                     </div>
 
                     {/* Show timestamps */}
-                    <div className="flex items-center justify-between p-4 rounded-xl border border-white/5 bg-white/[0.01]">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-xl border border-white/5 bg-white/[0.01]">
                       <div>
                         <span className="text-xs font-bold text-slate-200 block">Message Timestamps</span>
                         <span className="text-[9px] text-slate-500">Show dates and times next to prompt text</span>
                       </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
+                      <label className="relative inline-flex items-center cursor-pointer shrink-0 self-start sm:self-auto">
                         <input
                           type="checkbox"
                           checked={uiSettings.showTimestamps}
@@ -805,28 +805,28 @@ export function SettingsModal({ isOpen, onClose }: ModalProps) {
                     </div>
 
                     {/* layout density */}
-                    <div className="flex items-center justify-between p-4 rounded-xl border border-white/5 bg-white/[0.01]">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-xl border border-white/5 bg-white/[0.01]">
                       <div>
                         <span className="text-xs font-bold text-slate-200 block">Layout View Mode</span>
                         <span className="text-[9px] text-slate-500 font-medium text-slate-400">Change margins and grid spacing in viewport</span>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
                         <button
                           onClick={() => updateUiSetting('chatViewMode', 'compact')}
-                          className={`px-3 py-1 rounded text-[9px] font-bold uppercase tracking-wider border transition ${
+                          className={`px-3 py-1 rounded text-[9px] font-bold uppercase tracking-wider border transition cursor-pointer ${
                             uiSettings.chatViewMode === 'compact'
                               ? 'bg-indigo-500/10 text-indigo-300 border-indigo-500/20'
-                              : 'bg-transparent border-white/5 text-slate-450 text-slate-400'
+                              : 'bg-transparent border-white/5 text-slate-400'
                           }`}
                         >
                           Compact
                         </button>
                         <button
                           onClick={() => updateUiSetting('chatViewMode', 'comfortable')}
-                          className={`px-3 py-1 rounded text-[9px] font-bold uppercase tracking-wider border transition ${
+                          className={`px-3 py-1 rounded text-[9px] font-bold uppercase tracking-wider border transition cursor-pointer ${
                             uiSettings.chatViewMode === 'comfortable'
                               ? 'bg-indigo-500/10 text-indigo-300 border-indigo-500/20'
-                              : 'bg-transparent border-white/5 text-slate-450 text-slate-400'
+                              : 'bg-transparent border-white/5 text-slate-400'
                           }`}
                         >
                           Comfortable
