@@ -294,23 +294,16 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         const targetId = Number(savedChatId)
         const foundChat = data.data.find((c) => c.id === targetId)
         if (foundChat) {
-          setSelectedChat((prev) => {
-            if (!prev) {
-              void (async () => {
-                try {
-                  setIsLoadingMessages(true)
-                  const chatRes = await api.get<ApiResource<ExtendedChat>>(`/chats/${foundChat.id}`)
-                  setSelectedChat(chatRes.data.data)
-                  setMessages(chatRes.data.data.messages ?? [])
-                } catch {
-                  localStorage.removeItem('novamind_active_chat_id')
-                } finally {
-                  setIsLoadingMessages(false)
-                }
-              })()
-            }
-            return prev
-          })
+          try {
+            setIsLoadingMessages(true)
+            const chatRes = await api.get<ApiResource<ExtendedChat>>(`/chats/${foundChat.id}`)
+            setSelectedChat(chatRes.data.data)
+            setMessages(chatRes.data.data.messages ?? [])
+          } catch {
+            localStorage.removeItem('novamind_active_chat_id')
+          } finally {
+            setIsLoadingMessages(false)
+          }
         }
       }
     } catch (err) {
