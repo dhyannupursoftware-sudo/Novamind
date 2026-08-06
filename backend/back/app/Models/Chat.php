@@ -38,4 +38,24 @@ class Chat extends Model
     {
         return $this->hasMany(Message::class);
     }
+
+    protected static function booted(): void
+    {
+        static::deleting(function (Chat $chat) {
+            foreach ($chat->messages as $message) {
+                if (!empty($message->attachments) && is_array($message->attachments)) {
+                    foreach ($message->attachments as $attachment) {
+                        $url = $attachment['url'] ?? '';
+                        if (!empty($url)) {
+                            $path = parse_url($url, PHP_URL_PATH);
+                            if ($path && str_contains($path, '/storage/')) {
+                                $relativePath = ltrim(str_replace('/storage/', '', $path), '/');
+                                \Illuminate\Support\Facades\Storage::disk('public')->delete($relativePath);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
 }

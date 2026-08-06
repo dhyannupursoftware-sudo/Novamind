@@ -8,6 +8,7 @@ import {
   ChevronRight,
   Check,
   ChevronDown,
+  ChevronUp,
   FileText,
   Loader2,
   LogOut,
@@ -102,6 +103,8 @@ export function DashboardPage() {
   // Layout Controls
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [isPinnedExpanded, setIsPinnedExpanded] = useState(true)
+  const [isRecentExpanded, setIsRecentExpanded] = useState(true)
 
   // Body scroll lock effect for mobile sidebar drawer
   useEffect(() => {
@@ -164,7 +167,9 @@ export function DashboardPage() {
   const [plusMenuOpen, setPlusMenuOpen] = useState(false)
   const [pendingAttachments, setPendingAttachments] = useState<{ id: string; name: string; type: string; size: number; file: File; previewUrl?: string }[]>([])
   const [isUploadingFiles, setIsUploadingFiles] = useState(false)
-  const [showScrollFAB, setShowScrollFAB] = useState(false)
+  const [showScrollBottom, setShowScrollBottom] = useState(false)
+  const [showScrollTop, setShowScrollTop] = useState(false)
+  const lastScrollTopRef = useRef(0)
   const [sidebarSearchQuery, setSidebarSearchQuery] = useState('')
 
   // New Modal and Actions states for Multimodal System
@@ -175,6 +180,11 @@ export function DashboardPage() {
   const [zoomScale, setZoomScale] = useState<number>(1)
   const [imageFullscreen, setImageFullscreen] = useState<boolean>(false)
   const [deletedAttachmentUrls, setDeletedAttachmentUrls] = useState<string[]>([])
+
+  // Reset local deleted attachment URLs filter when active chat changes
+  useEffect(() => {
+    setDeletedAttachmentUrls([])
+  }, [selectedChat?.id])
 
   const handleCopyLink = async (url: string) => {
     try {
@@ -360,25 +370,58 @@ export function DashboardPage() {
   const imageInputRef = useRef<HTMLInputElement>(null)
   const chatViewportRef = useRef<HTMLDivElement>(null)
 
-  // Scroll handler for FAB
+  // Directional scroll handler for FAB scroll buttons
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const target = e.currentTarget
-    const threshold = 150
-    const isScrollUp = target.scrollHeight - target.scrollTop - target.clientHeight > threshold
-    setShowScrollFAB(isScrollUp)
+    const scrollTop = target.scrollTop
+    const scrollHeight = target.scrollHeight
+    const clientHeight = target.clientHeight
+
+    // Check if scrollable
+    if (scrollHeight <= clientHeight + 10) {
+      setShowScrollTop(false)
+      setShowScrollBottom(false)
+      return
+    }
+
+    // Check boundaries (at top or at bottom)
+    const isAtTop = scrollTop <= 40
+    const isAtBottom = scrollTop + clientHeight >= scrollHeight - 40
+
+    if (isAtTop || isAtBottom) {
+      setShowScrollTop(false)
+      setShowScrollBottom(false)
+      lastScrollTopRef.current = scrollTop
+      return
+    }
+
+    const scrollDelta = scrollTop - lastScrollTopRef.current
+
+    // Only trigger if user scrolled at least 5px to avoid jitter
+    if (Math.abs(scrollDelta) > 5) {
+      if (scrollDelta > 0) {
+        // User scrolling DOWN (top to bottom) -> Show ONLY Scroll to Bottom button
+        setShowScrollBottom(true)
+        setShowScrollTop(false)
+      } else {
+        // User scrolling UP (bottom to top) -> Show ONLY Scroll to Top button
+        setShowScrollTop(true)
+        setShowScrollBottom(false)
+      }
+      lastScrollTopRef.current = scrollTop
+    }
   }
 
-  // Auto resize prompt textarea
-  useEffect(() => {
-    const textarea = textareaRef.current
-    if (!textarea) return
-    textarea.style.height = 'auto'
-    textarea.style.height = `${Math.min(textarea.scrollHeight, 180)}px`
-  }, [prompt])
-
-  // Scroll to bottom helper (triggered manually via Scroll FAB button)
+  // Scroll to bottom helper
   const scrollToBottom = () => {
     messageEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    setShowScrollBottom(false)
+  }
+
+  // Scroll to top helper
+  const scrollToTop = () => {
+    chatViewportRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+    setShowScrollTop(false)
   }
 
   // Scroll new user question smoothly to top of viewport
@@ -1008,15 +1051,6 @@ export function DashboardPage() {
                   >
                     <Pin size={19} className="shrink-0" />
                   </button>
-
-                  {/* Recent Chat Icon in Collapsed Rail */}
-                  <button
-                    onClick={() => setSidebarCollapsed(false)}
-                    className="w-full flex items-center justify-center p-2 rounded-xl hover:bg-[#212121]/60 text-[#ececec] hover:text-white transition duration-150 cursor-pointer"
-                    title="Recent chats"
-                  >
-                    <MessageSquare size={19} className="shrink-0" />
-                  </button>
                 </>
               ) : (
                 <>
@@ -1095,28 +1129,51 @@ export function DashboardPage() {
                   {pinnedChats.length > 0 && (
                     <div className="space-y-0.5">
                       {!sidebarCollapsed && (
-                        <div className="flex items-center gap-1.5 px-3 pt-2 pb-1 text-[13.5px] font-semibold text-white select-none">
+                        <button
+                          type="button"
+                          onClick={() => setIsPinnedExpanded((prev) => !prev)}
+                          className="w-full flex items-center justify-between px-3 pt-2 pb-1 text-[13.5px] font-semibold text-white select-none hover:text-slate-200 transition cursor-pointer"
+                        >
                           <span>Pinned</span>
-                          <ChevronDown size={14} className="text-slate-400 shrink-0" />
-                        </div>
+                          <ChevronDown
+                            size={14}
+                            className={`text-slate-400 shrink-0 transition-transform duration-200 ${
+                              isPinnedExpanded ? 'rotate-0' : '-rotate-90'
+                            }`}
+                          />
+                        </button>
                       )}
-                      {pinnedChats.map(renderSidebarChatItem)}
+                      {(isPinnedExpanded || sidebarCollapsed) && pinnedChats.map(renderSidebarChatItem)}
                     </div>
                   )}
 
                   {/* Grouped Unpinned Chats (Recents) */}
-                  <div className="space-y-3">
-                    {!sidebarCollapsed && (
-                      <div className="px-3 pt-2 pb-1 text-[13.5px] font-semibold text-white select-none">
-                        Recents
-                      </div>
-                    )}
-                    {groupedUnpinnedChats.map((group) => (
-                      <div key={group.label} className="space-y-0.5">
-                        {group.chats.map(renderSidebarChatItem)}
-                      </div>
-                    ))}
-                  </div>
+                  {!sidebarCollapsed && groupedUnpinnedChats.length > 0 && (
+                    <div className="space-y-1">
+                      <button
+                        type="button"
+                        onClick={() => setIsRecentExpanded((prev) => !prev)}
+                        className="w-full flex items-center justify-between px-3 pt-2 pb-1 text-[13.5px] font-semibold text-white select-none hover:text-slate-200 transition cursor-pointer"
+                      >
+                        <span>Recents</span>
+                        <ChevronDown
+                          size={14}
+                          className={`text-slate-400 shrink-0 transition-transform duration-200 ${
+                            isRecentExpanded ? 'rotate-0' : '-rotate-90'
+                          }`}
+                        />
+                      </button>
+                      {isRecentExpanded && (
+                        <div className="space-y-3">
+                          {groupedUnpinnedChats.map((group) => (
+                            <div key={group.label} className="space-y-0.5">
+                              {group.chats.map(renderSidebarChatItem)}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </>
               )}
             </div>
@@ -1353,24 +1410,50 @@ export function DashboardPage() {
                         {/* Pinned Section */}
                         {pinnedChats.length > 0 && (
                           <div className="space-y-1">
-                            <div className="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider select-none">
-                              Pinned
-                            </div>
-                            {pinnedChats.map(renderSidebarChatItem)}
+                            <button
+                              type="button"
+                              onClick={() => setIsPinnedExpanded((prev) => !prev)}
+                              className="w-full flex items-center justify-between px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider select-none hover:text-white transition cursor-pointer"
+                            >
+                              <span>Pinned</span>
+                              <ChevronDown
+                                size={14}
+                                className={`text-slate-400 shrink-0 transition-transform duration-200 ${
+                                  isPinnedExpanded ? 'rotate-0' : '-rotate-90'
+                                }`}
+                              />
+                            </button>
+                            {isPinnedExpanded && pinnedChats.map(renderSidebarChatItem)}
                           </div>
                         )}
 
                         {/* Recents Section */}
-                        <div className="space-y-1">
-                          <div className="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider select-none">
-                            Recents
+                        {groupedUnpinnedChats.length > 0 && (
+                          <div className="space-y-1">
+                            <button
+                              type="button"
+                              onClick={() => setIsRecentExpanded((prev) => !prev)}
+                              className="w-full flex items-center justify-between px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider select-none hover:text-white transition cursor-pointer"
+                            >
+                              <span>Recents</span>
+                              <ChevronDown
+                                size={14}
+                                className={`text-slate-400 shrink-0 transition-transform duration-200 ${
+                                  isRecentExpanded ? 'rotate-0' : '-rotate-90'
+                                }`}
+                              />
+                            </button>
+                            {isRecentExpanded && (
+                              <div className="space-y-3">
+                                {groupedUnpinnedChats.map((group) => (
+                                  <div key={group.label} className="space-y-0.5">
+                                    {group.chats.map(renderSidebarChatItem)}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
-                          {groupedUnpinnedChats.map((group) => (
-                            <div key={group.label} className="space-y-0.5">
-                              {group.chats.map(renderSidebarChatItem)}
-                            </div>
-                          ))}
-                        </div>
+                        )}
                       </>
                     )}
                   </div>
@@ -1539,7 +1622,7 @@ export function DashboardPage() {
             onScroll={handleScroll}
             className="flex-1 overflow-y-auto scrollbar-thin px-4 sm:px-6 lg:px-8 pt-16 sm:pt-20 md:pt-24 pb-32 md:pb-36 flex flex-col items-center gap-4 md:gap-6 bg-transparent"
           >
-            <div className="w-full max-w-full sm:max-w-[720px] md:max-w-[800px] lg:max-w-[850px] xl:max-w-[900px] mx-auto flex-1 flex flex-col justify-between">
+            <div className="w-full max-w-full sm:max-w-[720px] md:max-w-[800px] lg:max-w-[850px] xl:max-w-[900px] mx-auto flex-1 flex flex-col justify-start">
 
               {isLoadingMessages ? (
                 <div className="space-y-8 py-6 flex-1 select-none">
@@ -1553,7 +1636,7 @@ export function DashboardPage() {
                     </div>
                   ))}
                 </div>
-              ) : filteredMessages.length === 0 ? (
+              ) : filteredMessages.length === 0 && !isSending && !isThinking ? (
 
                 /* EMPTY STATE INTRO CARD: Personalized User Welcome Greeting */
                 <div className="flex-1 flex flex-col items-center justify-center py-20 text-center select-none px-4">
@@ -1994,22 +2077,22 @@ export function DashboardPage() {
                       </motion.article>
                     )
                   })}
+
+                  {/* Typing/Thinking indicators - directly below the prompt */}
+                  {isThinking && (
+                    <div className="flex gap-4 pt-2 select-none items-center">
+                      <div className="size-8 rounded-full bg-slate-900 border border-white/10 overflow-hidden shrink-0 flex items-center justify-center">
+                        <Sparkles size={14} className="text-indigo-400 animate-pulse" />
+                      </div>
+                      <div className="flex-1 py-2 px-1 flex items-center gap-1.5">
+                        <span className="size-1.5 bg-slate-400 rounded-full animate-typing-dot" style={{ animationDelay: '0ms' }} />
+                        <span className="size-1.5 bg-slate-400 rounded-full animate-typing-dot" style={{ animationDelay: '150ms' }} />
+                        <span className="size-1.5 bg-slate-400 rounded-full animate-typing-dot" style={{ animationDelay: '300ms' }} />
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-              )}
-
-              {/* Typing/Thinking indicators */}
-              {isThinking && (
-                <div className="flex gap-4 mt-4 select-none">
-                  <div className="size-8 rounded-full bg-slate-900 border border-white/10 overflow-hidden shrink-0 flex items-center justify-center">
-                    <Sparkles size={14} className="text-indigo-400 animate-pulse" />
-                  </div>
-                  <div className="flex-1 py-2 px-1 flex items-center gap-1.5">
-                    <span className="size-1.5 bg-slate-400 rounded-full animate-typing-dot" style={{ animationDelay: '0ms' }} />
-                    <span className="size-1.5 bg-slate-400 rounded-full animate-typing-dot" style={{ animationDelay: '150ms' }} />
-                    <span className="size-1.5 bg-slate-400 rounded-full animate-typing-dot" style={{ animationDelay: '300ms' }} />
-                  </div>
-                </div>
               )}
 
             </div>
@@ -2017,21 +2100,39 @@ export function DashboardPage() {
             {/* Scroll bottom anchor */}
             <div ref={messageEndRef} />
 
-            {/* Scroll FAB */}
-            <AnimatePresence>
-              {showScrollFAB && (
-                <motion.button
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.8 }}
-                  onClick={scrollToBottom}
-                  type="button"
-                  className="fixed bottom-28 right-6 z-30 flex size-9 items-center justify-center rounded-full border border-white/10 bg-[#212121] text-slate-400 hover:bg-[#2f2f2f] hover:text-white shadow-xl transition duration-150 pointer-events-auto cursor-pointer"
-                >
-                  <ChevronDown size={18} />
-                </motion.button>
-              )}
-            </AnimatePresence>
+            {/* Directional Mutually Exclusive Scroll FAB Buttons */}
+            <div className="fixed bottom-28 right-6 z-30 flex flex-col gap-2 pointer-events-auto">
+              <AnimatePresence mode="wait">
+                {showScrollTop && (
+                  <motion.button
+                    key="scroll-top"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    onClick={scrollToTop}
+                    type="button"
+                    title="Scroll to Top"
+                    className="flex size-9 items-center justify-center rounded-full border border-white/10 bg-[#212121] text-slate-400 hover:bg-[#2f2f2f] hover:text-white shadow-xl transition duration-150 cursor-pointer"
+                  >
+                    <ChevronUp size={18} />
+                  </motion.button>
+                )}
+                {showScrollBottom && (
+                  <motion.button
+                    key="scroll-bottom"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    onClick={scrollToBottom}
+                    type="button"
+                    title="Scroll to Bottom"
+                    className="flex size-9 items-center justify-center rounded-full border border-white/10 bg-[#212121] text-slate-400 hover:bg-[#2f2f2f] hover:text-white shadow-xl transition duration-150 cursor-pointer"
+                  >
+                    <ChevronDown size={18} />
+                  </motion.button>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
 
 

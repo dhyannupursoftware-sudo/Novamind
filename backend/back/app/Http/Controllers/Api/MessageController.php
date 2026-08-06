@@ -60,15 +60,15 @@ class MessageController extends Controller
         try {
             $aiContent = $gemini->generateResponseFromHistory($history);
         } catch (Throwable $throwable) {
-            Log::error('Gemini generation failed.', [
+            Log::error('Gemini AI generation failed after all retry attempts & fallback.', [
                 'chat_id' => $chat->id,
                 'user_id' => $request->user()->id,
                 'error' => $throwable->getMessage(),
             ]);
 
             return response()->json([
-                'message' => 'Gemini AI service error: ' . $throwable->getMessage(),
-                'error' => $throwable->getMessage(),
+                'message' => "We couldn't reach the AI service right now. This is usually temporary. Please try again in a few moments.",
+                'error' => 'AI Service Temporarily Unavailable',
                 'data' => [
                     'user' => new MessageResource($userMessage),
                     'assistant' => null,

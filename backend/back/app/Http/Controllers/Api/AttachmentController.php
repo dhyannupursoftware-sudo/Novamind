@@ -17,7 +17,7 @@ class AttachmentController extends Controller
                 'required',
                 'file',
                 'max:10240', // Max 10MB
-                'mimes:jpg,jpeg,png,gif,webp,txt,pdf,json,md,html,css,js,ts,py,csv,xml',
+                'mimes:jpg,jpeg,png,gif,webp,mp4,webm,mov,avi,mkv,txt,pdf,json,md,html,css,js,ts,py,csv,xml',
             ],
         ]);
 
@@ -33,7 +33,7 @@ class AttachmentController extends Controller
         $path = $file->storeAs('attachments', $fileName, 'public');
         
         // Generate public URL
-        $url = Storage::disk('public')->url($path);
+        $url = asset('storage/' . $path);
 
         return response()->json([
             'name' => $originalName,

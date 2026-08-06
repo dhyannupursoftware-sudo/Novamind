@@ -11,6 +11,7 @@ class GeminiService
 {
     private string $apiKey;
     private string $model;
+    private string $fallbackModel;
     private int $timeout;
     private string $systemInstruction;
 
@@ -18,17 +19,19 @@ class GeminiService
     {
         $this->apiKey = (string) config('services.gemini.api_key', '');
         $this->model = (string) config('services.gemini.model', 'gemini-2.5-flash');
+        $this->fallbackModel = (string) config('services.gemini.fallback_model', 'gemini-1.5-flash');
         $this->timeout = (int) config('services.gemini.timeout', 30);
         $this->systemInstruction = (string) config('services.gemini.system_instruction', '');
     }
 
+    /**
+     * Generate response for a single message prompt with retries & model fallback.
+     */
     public function generateResponse(string $message, ?string $customSystemInstruction = null): string
     {
         if (empty($this->apiKey)) {
             throw new RuntimeException('Gemini API key is not configured.');
         }
-
-        $url = "https://generativelanguage.googleapis.com/v1beta/models/{$this->model}:generateContent?key={$this->apiKey}";
 
         $systemInstruction = $customSystemInstruction ?? $this->systemInstruction;
 
@@ -36,9 +39,7 @@ class GeminiService
             'contents' => [
                 [
                     'parts' => [
-                        [
-                            'text' => $message
-                        ]
+                        ['text' => $message]
                     ]
                 ]
             ],
@@ -57,50 +58,12 @@ class GeminiService
             ];
         }
 
-        try {
-
-            $response = Http::withoutVerifying()
-                ->timeout($this->timeout)
-                ->acceptJson()
-                ->post($url, $payload);
-
-            Log::info('Gemini Response', [
-                'status' => $response->status(),
-                'body' => $response->json() ?? $response->body(),
-            ]);
-
-        } catch (Throwable $e) {
-
-            Log::error('Gemini Error', [
-                'message' => $e->getMessage()
-            ]);
-
-            throw new RuntimeException(
-                "Network error while connecting to Gemini API: ".$e->getMessage()
-            );
-        }
-
-        if (!$response->successful()) {
-
-            $error = $response->json('error.message') ?? $response->body();
-
-            throw new RuntimeException(
-                "Gemini API Error ({$response->status()}): ".$error
-            );
-        }
-
-        $text = data_get(
-            $response->json(),
-            'candidates.0.content.parts.0.text'
-        );
-
-        if (!$text) {
-            throw new RuntimeException('Gemini returned an empty response.');
-        }
-
-        return trim($text);
+        return $this->executeApiCallWithRetryAndFallback($payload);
     }
 
+    /**
+     * Generate response from full conversation history with retries & model fallback.
+     */
     public function generateResponseFromHistory(array $historyMessages, ?string $customSystemInstruction = null): string
     {
         if (empty($this->apiKey)) {
@@ -126,7 +89,6 @@ class GeminiService
                     $mime = $att['type'] ?? '';
                     $url = $att['url'] ?? '';
                     if (str_starts_with($mime, 'image/') && !empty($url)) {
-                        // Check if file exists locally in public path or fetch data
                         $relativePath = ltrim(parse_url($url, PHP_URL_PATH) ?? '', '/');
                         $fullPath = public_path($relativePath);
                         if (file_exists($fullPath)) {
@@ -156,8 +118,6 @@ class GeminiService
             throw new RuntimeException('No messages found.');
         }
 
-        $url = "https://generativelanguage.googleapis.com/v1beta/models/{$this->model}:generateContent?key={$this->apiKey}";
-
         $systemInstruction = $customSystemInstruction ?? $this->systemInstruction;
 
         $payload = [
@@ -177,47 +137,89 @@ class GeminiService
             ];
         }
 
-        try {
-            $response = Http::withoutVerifying()
-                ->timeout($this->timeout)
-                ->acceptJson()
-                ->post($url, $payload);
+        return $this->executeApiCallWithRetryAndFallback($payload);
+    }
 
-            Log::info('Gemini Chat History Response', [
-                'status' => $response->status(),
-                'body' => $response->json() ?? $response->body(),
-            ]);
+    /**
+     * Executes the Gemini API call with Exponential Backoff Retries & Model Fallback.
+     * Retries on HTTP 429, 500, 502, 503, 504 and network/connection timeouts.
+     */
+    private function executeApiCallWithRetryAndFallback(array $payload): string
+    {
+        $modelsToTry = array_values(array_unique(array_filter([$this->model, $this->fallbackModel])));
 
-        } catch (Throwable $e) {
+        // Exponential backoff delays in seconds (Attempt 1: 0s, Attempt 2: 2s, Attempt 3: 4s, Attempt 4: 8s)
+        $delays = [0, 2, 4, 8];
+        $retryableStatusCodes = [429, 500, 502, 503, 504, 0];
 
-            Log::error('Gemini Chat History Error', [
-                'message' => $e->getMessage()
-            ]);
+        foreach ($modelsToTry as $currentModel) {
+            $url = "https://generativelanguage.googleapis.com/v1beta/models/{$currentModel}:generateContent?key={$this->apiKey}";
 
-            throw new RuntimeException(
-                "Network error while connecting to Gemini API: ".$e->getMessage()
-            );
+            foreach ($delays as $attemptIndex => $delaySeconds) {
+                $attemptNumber = $attemptIndex + 1;
+
+                if ($delaySeconds > 0) {
+                    Log::info("Gemini API Retrying automatically in {$delaySeconds}s (Attempt {$attemptNumber}/" . count($delays) . " for model '{$currentModel}')...");
+                    sleep($delaySeconds);
+                }
+
+                $startTime = microtime(true);
+                $statusCode = 0;
+                $errorMessage = '';
+
+                try {
+                    $response = Http::withoutVerifying()
+                        ->timeout($this->timeout)
+                        ->acceptJson()
+                        ->post($url, $payload);
+
+                    $durationMs = round((microtime(true) - $startTime) * 1000, 2);
+                    $statusCode = $response->status();
+
+                    if ($response->successful()) {
+                        $text = data_get($response->json(), 'candidates.0.content.parts.0.text');
+                        if ($text) {
+                            Log::info("Gemini API Call Succeeded", [
+                                'timestamp' => now()->toIso8601String(),
+                                'model' => $currentModel,
+                                'attempt' => $attemptNumber,
+                                'status_code' => $statusCode,
+                                'duration_ms' => $durationMs,
+                            ]);
+                            return trim($text);
+                        }
+                        $errorMessage = 'Empty response content received from Gemini API.';
+                    } else {
+                        $errorMessage = $response->json('error.message') ?? "HTTP {$statusCode} Error: " . $response->body();
+                    }
+                } catch (Throwable $e) {
+                    $durationMs = round((microtime(true) - $startTime) * 1000, 2);
+                    $errorMessage = $e->getMessage();
+                }
+
+                // Log failure attempt securely without exposing API key
+                Log::warning("Gemini API Attempt Failed", [
+                    'timestamp' => now()->toIso8601String(),
+                    'model' => $currentModel,
+                    'attempt' => $attemptNumber,
+                    'status_code' => $statusCode,
+                    'error' => $errorMessage,
+                    'duration_ms' => $durationMs,
+                ]);
+
+                // If error is not retryable (e.g. 400 Bad Request, 401 Unauthorized), stop retrying this model
+                if (!in_array($statusCode, $retryableStatusCodes, true)) {
+                    break;
+                }
+            }
+
+            if ($currentModel !== end($modelsToTry)) {
+                Log::warning("Gemini Primary Model '{$currentModel}' exhausted all retry attempts. Switching to Fallback Model '{$this->fallbackModel}'...");
+            }
         }
 
-        if (!$response->successful()) {
-
-            $error = $response->json('error.message') ?? $response->body();
-
-            throw new RuntimeException(
-                "Gemini API Error ({$response->status()}): ".$error
-            );
-        }
-
-        $text = data_get(
-            $response->json(),
-            'candidates.0.content.parts.0.text'
-        );
-
-        if (!$text) {
-            throw new RuntimeException('Gemini returned an empty response.');
-        }
-
-        return trim($text);
+        // Final graceful error if all attempts and fallbacks fail
+        throw new RuntimeException("We couldn't reach the AI service right now. This is usually temporary. Please try again in a few moments.");
     }
 
     public function health(): array
@@ -226,6 +228,7 @@ class GeminiService
             'reachable' => true,
             'host' => 'https://generativelanguage.googleapis.com',
             'configured_model' => $this->model,
+            'fallback_model' => $this->fallbackModel,
             'configured' => !empty($this->apiKey),
         ];
     }

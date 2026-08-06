@@ -550,9 +550,19 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         }
       })
     } catch (err) {
-      showToast(errorMessage(err), 'error')
-      // Clean up temp user message if send failed
-      setMessages((prev) => prev.filter((m) => m.id !== tempUserMsgId))
+      const serverUserMsg = (err as any)?.response?.data?.data?.user
+      const userFriendlyMsg = (err as any)?.response?.data?.message || errorMessage(err)
+
+      if (serverUserMsg) {
+        setMessages((prev) => {
+          const filtered = prev.filter((m) => m.id !== tempUserMsgId)
+          return [...filtered, serverUserMsg]
+        })
+      } else {
+        // Keep prompt visible so user does not lose input text
+      }
+
+      showToast(userFriendlyMsg, 'error')
       setIsThinking(false)
     } finally {
       setIsSending(false)
