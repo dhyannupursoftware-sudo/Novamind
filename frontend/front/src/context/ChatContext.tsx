@@ -139,6 +139,7 @@ interface ChatContextValue {
   togglePinChat: (chat: ExtendedChat) => Promise<void>
   toggleSaveChat: (chat: ExtendedChat) => Promise<void>
   sendMessage: (content: string, attachments?: Attachment[]) => Promise<void>
+  stopGeneration: () => void
   setMessages: React.Dispatch<React.SetStateAction<ExtendedMessage[]>>
   
   // Settings Actions
@@ -191,6 +192,24 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const [isLoadingMessages, setIsLoadingMessages] = useState(false)
   const [isSending, setIsSending] = useState(false)
   const [isThinking, setIsThinking] = useState(false)
+  
+  const activeStreamIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const activeAbortControllerRef = useRef<AbortController | null>(null)
+  const isStoppedRef = useRef(false)
+
+  const stopGeneration = useCallback(() => {
+    isStoppedRef.current = true
+    if (activeAbortControllerRef.current) {
+      activeAbortControllerRef.current.abort()
+      activeAbortControllerRef.current = null
+    }
+    if (activeStreamIntervalRef.current) {
+      clearInterval(activeStreamIntervalRef.current)
+      activeStreamIntervalRef.current = null
+    }
+    setIsThinking(false)
+    setIsSending(false)
+  }, [])
   
   // Filtering & Sorting
   const [searchQuery, setSearchQuery] = useState('')
@@ -460,6 +479,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const sendMessage = useCallback(async (content: string, attachments: Attachment[] = []) => {
     if ((!content.trim() && attachments.length === 0) || isSending) return
 
+    isStoppedRef.current = false
     setIsSending(true)
     setIsThinking(true)
 
@@ -496,11 +516,23 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       )
 
       // Post the message
+      const abortController = new AbortController()
+      activeAbortControllerRef.current = abortController
+
       const { data } = await api.post<ApiResource<{ user: ExtendedMessage; assistant: ExtendedMessage }>>(`/chats/${activeChat.id}/messages`, {
         role: 'user',
         content: content.trim(),
         attachments: attachments.length > 0 ? attachments : null,
+      }, {
+        signal: abortController.signal,
       })
+
+      // If user clicked Pause / Stop while API was fetching, cancel completely!
+      if (isStoppedRef.current) {
+        setIsThinking(false)
+        setIsSending(false)
+        return
+      }
 
       // Replace the temp message with the actual stored user message
       setMessages((prev) => {
@@ -508,7 +540,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         return [...filtered, data.data.user]
       })
 
-      if (data.data.assistant) {
+      if (data.data.assistant && !isStoppedRef.current) {
         const assistantMsg = data.data.assistant
 
         // Add empty assistant placeholder first
@@ -528,6 +560,12 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
         await new Promise<void>((resolve) => {
           const interval = setInterval(() => {
+            if (isStoppedRef.current) {
+              clearInterval(interval)
+              activeStreamIntervalRef.current = null
+              resolve()
+              return
+            }
             if (wordIndex < words.length) {
               currentText += words[wordIndex]
               wordIndex++
@@ -541,9 +579,11 @@ export function ChatProvider({ children }: { children: ReactNode }) {
               )
             } else {
               clearInterval(interval)
+              activeStreamIntervalRef.current = null
               resolve()
             }
           }, 10)
+          activeStreamIntervalRef.current = interval
         })
       }
 
@@ -575,6 +615,11 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         }
       })
     } catch (err) {
+      if ((err as any)?.name === 'AbortError') {
+        // Suppress abort toast when user pauses/stops task intentionally
+        setIsThinking(false)
+        return
+      }
       const serverUserMsg = (err as any)?.response?.data?.data?.user
       const userFriendlyMsg = (err as any)?.response?.data?.message || errorMessage(err)
 
@@ -590,7 +635,13 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       showToast(userFriendlyMsg, 'error')
       setIsThinking(false)
     } finally {
+      if (activeStreamIntervalRef.current) {
+        clearInterval(activeStreamIntervalRef.current)
+        activeStreamIntervalRef.current = null
+      }
+      activeAbortControllerRef.current = null
       setIsSending(false)
+      setIsThinking(false)
     }
   }, [selectedChat, createChat, isSending, showToast])
 
@@ -739,6 +790,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       togglePinChat,
       toggleSaveChat,
       sendMessage,
+      stopGeneration,
       setMessages,
       settings,
       updateSettings,

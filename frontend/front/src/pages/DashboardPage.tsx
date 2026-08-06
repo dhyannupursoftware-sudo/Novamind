@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo, type FormEvent, type KeyboardEvent, type ChangeEvent } from 'react'
+import { useState, useRef, useEffect, useMemo, type FormEvent, type ChangeEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -10,11 +10,8 @@ import {
   ChevronDown,
   ChevronUp,
   FileText,
-  Loader2,
   LogOut,
   MessageSquare,
-  Mic,
-  Paperclip,
   Pin,
   Plus,
   Search,
@@ -59,6 +56,7 @@ import { exportChatToMarkdown } from '../lib/ChatExportService'
 import { QuestionNavShortcut } from '../components/QuestionNavShortcut'
 import { ModelSelector, AI_MODELS, type AIModel } from '../components/ModelSelector'
 import { ArtifactsDrawer } from '../components/ArtifactsDrawer'
+import { ChatMessageComposer } from '../components/ChatMessageComposer'
 
 export function DashboardPage() {
   const { logout, user } = useAuth()
@@ -77,6 +75,7 @@ export function DashboardPage() {
     duplicateChat,
     togglePinChat,
     sendMessage,
+    stopGeneration,
     setMessages,
     uploadFile,
     isListening,
@@ -164,7 +163,6 @@ export function DashboardPage() {
 
   // Input states
   const [prompt, setPrompt] = useState('')
-  const [plusMenuOpen, setPlusMenuOpen] = useState(false)
   const [pendingAttachments, setPendingAttachments] = useState<{ id: string; name: string; type: string; size: number; file: File; previewUrl?: string }[]>([])
   const [isUploadingFiles, setIsUploadingFiles] = useState(false)
   const [showScrollBottom, setShowScrollBottom] = useState(false)
@@ -548,11 +546,6 @@ export function DashboardPage() {
     })
   }
 
-  // Voice dictation transcription handler
-  const handleVoiceTranscript = (text: string) => {
-    setPrompt((prev) => (prev ? prev + ' ' + text : text))
-  }
-
   // Send message
   const handleSend = async (e?: FormEvent) => {
     if (e) e.preventDefault()
@@ -598,13 +591,6 @@ export function DashboardPage() {
     } catch {
       showToast('Error sending message: files failed to upload.', 'error')
       setIsUploadingFiles(false)
-    }
-  }
-
-  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      void handleSend()
     }
   }
 
@@ -2100,8 +2086,8 @@ export function DashboardPage() {
             {/* Scroll bottom anchor */}
             <div ref={messageEndRef} />
 
-            {/* Directional Mutually Exclusive Scroll FAB Buttons */}
-            <div className="fixed bottom-28 right-6 z-30 flex flex-col gap-2 pointer-events-auto">
+            {/* Directional Mutually Exclusive Scroll FAB Buttons (Laptop & Desktop only) */}
+            <div className="hidden md:flex fixed bottom-28 right-6 z-30 flex-col gap-2 pointer-events-auto">
               <AnimatePresence mode="wait">
                 {showScrollTop && (
                   <motion.button
@@ -2150,167 +2136,34 @@ export function DashboardPage() {
           >
             <div className="w-full max-w-full sm:max-w-[720px] md:max-w-[800px] lg:max-w-[850px] xl:max-w-[900px] mx-auto pointer-events-auto px-2 sm:px-0">
 
-              {/* Pre-upload attachment file tags */}
-              {pendingAttachments.length > 0 && (
-                <div className="mb-3 flex flex-wrap gap-3 p-3 rounded-2xl border border-white/5 bg-slate-950/40 select-none">
-                  {pendingAttachments.map((item) => {
-                    const isImg = item.type.startsWith('image/')
-                    return (
-                      <div
-                        key={item.id}
-                        className={`relative rounded-xl border border-white/10 bg-[#212121] overflow-hidden transition-all duration-250 ${isImg
-                          ? 'size-16 group hover:border-indigo-500/50 shadow-md animate-in fade-in zoom-in duration-200'
-                          : 'flex items-center gap-2 p-2 pr-3 text-xs text-white max-w-[200px] animate-in fade-in zoom-in duration-200'
-                          }`}
-                      >
-                        {isImg ? (
-                          <>
-                            {/* Image thumbnail */}
-                            <img
-                              src={item.previewUrl}
-                              alt={item.name}
-                              className="size-full object-cover"
-                            />
-                            {/* Hover overlay with Delete button */}
-                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-150 flex items-center justify-center">
-                              <button
-                                type="button"
-                                onClick={() => removePendingAttachment(item.id)}
-                                className="p-1 rounded-full bg-rose-500/80 hover:bg-rose-600 text-white transition active:scale-95"
-                                title="Remove image"
-                              >
-                                <X size={14} />
-                              </button>
-                            </div>
-                          </>
-                        ) : (
-                          <>
-                            <Paperclip size={14} className="text-indigo-400 shrink-0" />
-                            <span className="truncate flex-1 font-semibold text-[10px]">{item.name}</span>
-                            <button
-                              type="button"
-                              onClick={() => removePendingAttachment(item.id)}
-                              className="rounded hover:bg-white/10 p-0.5 text-slate-400 hover:text-white transition"
-                              title="Remove file"
-                            >
-                              <X size={12} />
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-
-              {/* Pill-shaped ChatGPT input form container matching user screenshot */}
-              <div className="relative rounded-full input-container-glass px-3.5 py-1 shadow-xl">
-                <form
-                  onSubmit={handleSend}
-                  className="flex items-center gap-2 min-h-[40px]"
-                >
-                  {/* Plus button on the left with popover menu */}
-                  <div className="relative shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => setPlusMenuOpen((prev) => !prev)}
-                      disabled={isSending || isUploadingFiles}
-                      className={`size-7.5 sm:size-8 rounded-full hover:bg-white/10 text-slate-300 hover:text-white transition flex items-center justify-center shrink-0 cursor-pointer ${plusMenuOpen ? 'bg-white/15 text-white' : ''
-                        }`}
-                      title="Add attachments or templates"
-                    >
-                      <Plus size={18} className={`stroke-[2] transition-transform duration-200 ${plusMenuOpen ? 'rotate-45' : ''}`} />
-                    </button>
-
-                    {/* Plus Menu Popover */}
-                    <AnimatePresence>
-                      {plusMenuOpen && (
-                        <>
-                          <div
-                            className="fixed inset-0 z-40"
-                            onClick={() => setPlusMenuOpen(false)}
-                          />
-                          <motion.div
-                            initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                            exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                            transition={{ duration: 0.15 }}
-                            className="absolute bottom-full left-0 mb-3 z-50 w-52 rounded-2xl border border-white/10 bg-[#212121] p-1.5 shadow-2xl space-y-0.5 select-none"
-                          >
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setPlusMenuOpen(false)
-                                triggerFileInput('all')
-                              }}
-                              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-200 hover:bg-white/10 hover:text-white transition text-left cursor-pointer"
-                            >
-                              <Paperclip size={16} className="text-indigo-400 shrink-0" />
-                              <span>Photos & Files</span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setPlusMenuOpen(false)
-                                setIsPromptLibraryOpen(true)
-                              }}
-                              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-200 hover:bg-white/10 hover:text-white transition text-left cursor-pointer"
-                            >
-                              <Sparkles size={16} className="text-indigo-400 shrink-0" />
-                              <span>Prompt Templates</span>
-                            </button>
-                          </motion.div>
-                        </>
-                      )}
-                    </AnimatePresence>
-                  </div>
-
-                  {/* Hidden inputs */}
-                  <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" multiple />
-                  <input type="file" ref={imageInputRef} onChange={handleFileChange} accept="image/*" className="hidden" multiple />
-
-                  {/* Input TextArea with clean 'Ask anything...' placeholder */}
-                  <textarea
-                    ref={textareaRef}
-                    rows={1}
-                    className="flex-1 resize-none bg-transparent py-1.5 px-1 text-xs sm:text-sm leading-relaxed text-[#ececec] placeholder-[#8e8e93] focus:outline-none scrollbar-none font-sans"
-                    placeholder="Ask anything..."
-                    value={prompt}
-                    onChange={(e) => setPrompt(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    disabled={isSending || isUploadingFiles}
-                  />
-
-                  {/* Actions on the right inside input box */}
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    {/* Voice mic */}
-                    <button
-                      type="button"
-                      onClick={() => toggleSpeechRecognition(handleVoiceTranscript)}
-                      className={`size-8 rounded-full flex items-center justify-center transition shrink-0 cursor-pointer ${isListening ? 'bg-red-500/20 text-red-400 animate-pulse' : 'text-slate-300 hover:bg-white/10 hover:text-white'}`}
-                      title="Voice dictation"
-                    >
-                      <Mic size={16} />
-                    </button>
-
-                    {/* Send Button (Blue circle matching ChatGPT design in screenshot) */}
-                    <button
-                      type="submit"
-                      disabled={isSending || isUploadingFiles || (!prompt.trim() && pendingAttachments.length === 0)}
-                      className={`size-8 rounded-full flex items-center justify-center transition-all duration-200 send-btn-animated shadow-md cursor-pointer ${(!prompt.trim() && pendingAttachments.length === 0)
-                        ? 'bg-[#2563eb]/40 text-white/40 cursor-not-allowed'
-                        : 'bg-[#2563eb] hover:bg-[#1d4ed8] text-white active:scale-95'
-                        }`}
-                    >
-                      {isSending || isUploadingFiles ? (
-                        <Loader2 size={15} className="animate-spin text-white" />
-                      ) : (
-                        <ArrowUp size={16} className="text-white stroke-[2.5]" />
-                      )}
-                    </button>
-                  </div>
-                </form>
-              </div>
+              {/* ChatGPT Message Composer */}
+              <ChatMessageComposer
+                prompt={prompt}
+                setPrompt={setPrompt}
+                pendingAttachments={pendingAttachments}
+                setPendingAttachments={setPendingAttachments}
+                onSend={handleSend}
+                isSending={isSending}
+                isThinking={isThinking}
+                stopGeneration={stopGeneration}
+                isUploadingFiles={isUploadingFiles}
+                toggleSpeechRecognition={toggleSpeechRecognition}
+                isListening={isListening}
+                triggerFileInput={triggerFileInput}
+                fileInputRef={fileInputRef}
+                imageInputRef={imageInputRef}
+                handleFileChange={handleFileChange}
+                removePendingAttachment={removePendingAttachment}
+                setIsPromptLibraryOpen={setIsPromptLibraryOpen}
+                onOpenImageViewer={(url, name) => {
+                  setActiveImageViewerUrl(url)
+                  setActiveImageViewerName(name)
+                  setZoomScale(1)
+                  setImageFullscreen(false)
+                }}
+                showToast={showToast}
+                textareaRef={textareaRef}
+              />
 
               {/* Disclaimer */}
               <div className="mt-2 text-center select-none">
