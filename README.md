@@ -5,36 +5,92 @@ Production-ready foundation for an AI chatbot SaaS using React TypeScript, Vite,
 ## Folder Structure
 
 ```text
-NovaMind AI
-├── backend/
-│   └── back/
-│       ├── app/
-│       │   ├── Http/
-│       │   │   ├── Controllers/Api/
-│       │   │   ├── Requests/
-│       │   │   └── Resources/
-│       │   ├── Models/
-│       │   └── Providers/
-│       ├── config/
-│       ├── database/
-│       │   ├── factories/
-│       │   ├── migrations/
-│       │   └── seeders/
-│       └── routes/
-│           ├── api.php
-│           └── web.php
-└── frontend/
-    └── front/
-        ├── src/
-        │   ├── components/
-        │   ├── context/
-        │   ├── layouts/
-        │   ├── lib/
-        │   ├── pages/
-        │   ├── routes/
-        │   └── types/
-        ├── .env.example
-        └── vite.config.ts
+chatbot/
+│
+├── 📂 backend/back/                  # Laravel 11 Backend API
+│   ├── 📂 app/
+│   │   ├── 📂 Http/
+│   │   │   └── 📂 Controllers/
+│   │   │       └── 📂 Api/
+│   │   │           ├── AiHealthController.php
+│   │   │           ├── AttachmentController.php
+│   │   │           ├── ChatController.php
+│   │   │           ├── MessageController.php
+│   │   │           ├── SettingController.php
+│   │   │           └── 📂 Auth/
+│   │   │               ├── AuthController.php
+│   │   │               ├── ForgotPasswordController.php
+│   │   │               ├── RegisterController.php
+│   │   │               ├── ResetPasswordController.php
+│   │   │               └── VerificationController.php
+│   │   ├── 📂 Models/
+│   │   │   ├── User.php
+│   │   │   ├── Chat.php
+│   │   │   ├── Message.php
+│   │   │   └── Setting.php
+│   │   └── 📂 Services/
+│   │       └── GeminiService.php      # Google Gemini REST API Integration
+│   │
+│   ├── 📂 config/
+│   │   ├── services.php               # Gemini System Instruction & Config
+│   │   ├── auth.php
+│   │   └── cors.php
+│   │
+│   ├── 📂 database/
+│   │   └── 📂 migrations/             # Users, Chats, Messages, Attachments Tables
+│   │
+│   ├── 📂 routes/
+│   │   └── api.php                    # REST API Endpoints (/api/v1/...)
+│   │
+│   ├── .env                           # Environment Variables (DB & API Keys)
+│   ├── artisan
+│   └── composer.json
+│
+│
+└── 📂 frontend/front/                 # React (Vite) TypeScript Frontend
+    ├── 📂 src/
+    │   ├── 📂 components/             # Reusable UI Components
+    │   │   ├── ArtifactsDrawer.tsx
+    │   │   ├── BrandMark.tsx
+    │   │   ├── CodePreviewModal.tsx
+    │   │   ├── CommandPalette.tsx
+    │   │   ├── ModelSelector.tsx
+    │   │   ├── PromptLibraryModal.tsx
+    │   │   ├── QuestionNavShortcut.tsx
+    │   │   ├── 📂 auth/               # Login & Register Forms
+    │   │   └── 📂 ui/                 # MarkdownRenderer, Modals, Toast
+    │   │       ├── MarkdownRenderer.tsx
+    │   │       └── Modals.tsx
+    │   │
+    │   ├── 📂 context/                # Global State Management
+    │   │   ├── AuthContext.tsx        # Authentication & Token Session
+    │   │   ├── ChatContext.tsx        # Messages, History & API Calls
+    │   │   └── ToastContext.tsx       # System Toast Notifications
+    │   │
+    │   ├── 📂 pages/                  # Main View Pages
+    │   │   ├── DashboardPage.tsx      # Main ChatGPT Chat Interface
+    │   │   ├── WelcomePage.tsx
+    │   │   ├── LoginPage.tsx
+    │   │   ├── RegisterPage.tsx
+    │   │   ├── ProfilePage.tsx
+    │   │   └── SettingsPage.tsx
+    │   │
+    │   ├── 📂 routes/                 # Route Protection Guards
+    │   │   ├── ProtectedRoute.tsx     # Private Dashboard Guard
+    │   │   └── GuestRoute.tsx         # Public Auth Guard (No Reload Flash)
+    │   │
+    │   ├── 📂 lib/                    # Axios Client & Helper Utilities
+    │   │   ├── api.ts
+    │   │   └── utils.ts
+    │   │
+    │   ├── App.tsx                    # Main App Routing & Providers
+    │   ├── main.tsx                   # React Entry Point
+    │   └── index.css                  # Global Styling & ChatGPT Theme
+    │
+    ├── package.json
+    ├── vite.config.ts
+    └── tsconfig.json
+
 ```
 
 ## Frontend Architecture
