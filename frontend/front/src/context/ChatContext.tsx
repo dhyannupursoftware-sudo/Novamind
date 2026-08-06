@@ -287,6 +287,32 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
       const { data } = await api.get<PaginatedResponse<ExtendedChat>>(`/chats?${params.toString()}`)
       setChats(data.data)
+
+      // Restore active chat on refresh / initial page load
+      const savedChatId = localStorage.getItem('novamind_active_chat_id')
+      if (savedChatId && data.data.length > 0) {
+        const targetId = Number(savedChatId)
+        const foundChat = data.data.find((c) => c.id === targetId)
+        if (foundChat) {
+          setSelectedChat((prev) => {
+            if (!prev) {
+              void (async () => {
+                try {
+                  setIsLoadingMessages(true)
+                  const chatRes = await api.get<ApiResource<ExtendedChat>>(`/chats/${foundChat.id}`)
+                  setSelectedChat(chatRes.data.data)
+                  setMessages(chatRes.data.data.messages ?? [])
+                } catch {
+                  localStorage.removeItem('novamind_active_chat_id')
+                } finally {
+                  setIsLoadingMessages(false)
+                }
+              })()
+            }
+            return prev
+          })
+        }
+      }
     } catch (err) {
       showToast(errorMessage(err), 'error')
     } finally {
@@ -310,6 +336,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const selectChat = useCallback(async (chat: ExtendedChat) => {
     setIsLoadingMessages(true)
     try {
+      localStorage.setItem('novamind_active_chat_id', String(chat.id))
       const { data } = await api.get<ApiResource<ExtendedChat>>(`/chats/${chat.id}`)
       setSelectedChat(data.data)
       setMessages(data.data.messages ?? [])
@@ -327,6 +354,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       setChats((prev) => [data.data, ...prev])
       setSelectedChat(data.data)
       setMessages([])
+      localStorage.setItem('novamind_active_chat_id', String(data.data.id))
       return data.data
     } catch (err) {
       showToast(errorMessage(err), 'error')
@@ -356,6 +384,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       if (selectedChat?.id === chatId) {
         setSelectedChat(null)
         setMessages([])
+        localStorage.removeItem('novamind_active_chat_id')
       }
       showToast('Conversation deleted', 'success')
     } catch (err) {
@@ -456,13 +485,16 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     // Instantly append user message
     setMessages((prev) => [...prev, tempUserMsg])
 
-
-
     try {
       let activeChat = selectedChat
       if (!activeChat) {
-        // If creating new chat, create it first
-        activeChat = await createChat(content.trim() ? content.trim() : 'Attachment Upload')
+        // If creating new chat, create it directly via API without wiping temp user message
+        const titleText = content.trim() ? (content.trim().length > 40 ? content.trim().substring(0, 40) + '...' : content.trim()) : 'New chat'
+        const { data: newChatRes } = await api.post<ApiResource<ExtendedChat>>('/chats', { title: titleText })
+        activeChat = newChatRes.data
+        setChats((prev) => [activeChat!, ...prev])
+        setSelectedChat(activeChat)
+        localStorage.setItem('novamind_active_chat_id', String(activeChat.id))
       }
 
       // Update tempUserMsg's chat_id once chat is created/identified

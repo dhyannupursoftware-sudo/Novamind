@@ -66,9 +66,16 @@ class MessageController extends Controller
                 'error' => $throwable->getMessage(),
             ]);
 
+            $errorStr = strtolower($throwable->getMessage());
+            $isRateLimit = str_contains($errorStr, 'quota') || str_contains($errorStr, 'rate limit') || str_contains($errorStr, '429') || str_contains($errorStr, 'resource_exhausted');
+            
+            $userFacingError = $isRateLimit 
+                ? "Gemini API Daily Quota Exceeded (Free tier limit reached). Please put a new API key in backend .env (GEMINI_API_KEY)!" 
+                : "We couldn't reach the AI service right now. Please try again in a few moments.";
+
             return response()->json([
-                'message' => "We couldn't reach the AI service right now. This is usually temporary. Please try again in a few moments.",
-                'error' => 'AI Service Temporarily Unavailable',
+                'message' => $userFacingError,
+                'error' => $isRateLimit ? 'Gemini API Key Quota Exceeded' : 'AI Service Temporarily Unavailable',
                 'data' => [
                     'user' => new MessageResource($userMessage),
                     'assistant' => null,

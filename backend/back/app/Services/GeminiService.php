@@ -146,11 +146,14 @@ class GeminiService
      */
     private function executeApiCallWithRetryAndFallback(array $payload): string
     {
+        @set_time_limit(60);
         $modelsToTry = array_values(array_unique(array_filter([$this->model, $this->fallbackModel])));
 
-        // Exponential backoff delays in seconds (Attempt 1: 0s, Attempt 2: 2s, Attempt 3: 4s, Attempt 4: 8s)
-        $delays = [0, 2, 4, 8];
-        $retryableStatusCodes = [429, 500, 502, 503, 504, 0];
+        // Fast retry delays in seconds (Attempt 1: 0s, Attempt 2: 1s)
+        $delays = [0, 1];
+        $retryableStatusCodes = [500, 502, 503, 504, 0];
+        $rateLimitHit = false;
+        $lastErrorMessage = '';
 
         foreach ($modelsToTry as $currentModel) {
             $url = "https://generativelanguage.googleapis.com/v1beta/models/{$currentModel}:generateContent?key={$this->apiKey}";
@@ -169,7 +172,7 @@ class GeminiService
 
                 try {
                     $response = Http::withoutVerifying()
-                        ->timeout($this->timeout)
+                        ->timeout(12)
                         ->acceptJson()
                         ->post($url, $payload);
 
@@ -197,7 +200,11 @@ class GeminiService
                     $errorMessage = $e->getMessage();
                 }
 
-                // Log failure attempt securely without exposing API key
+                $lastErrorMessage = $errorMessage;
+                if ($statusCode === 429 || str_contains(strtolower($errorMessage), 'quota') || str_contains(strtolower($errorMessage), 'rate limit')) {
+                    $rateLimitHit = true;
+                }
+
                 Log::warning("Gemini API Attempt Failed", [
                     'timestamp' => now()->toIso8601String(),
                     'model' => $currentModel,
@@ -207,18 +214,25 @@ class GeminiService
                     'duration_ms' => $durationMs,
                 ]);
 
-                // If error is not retryable (e.g. 400 Bad Request, 401 Unauthorized), stop retrying this model
+                // On 429 Rate Limit or 404 Model Not Found, break immediately to try fallback model
+                if ($statusCode === 429 || $statusCode === 404) {
+                    break;
+                }
+
                 if (!in_array($statusCode, $retryableStatusCodes, true)) {
                     break;
                 }
             }
 
             if ($currentModel !== end($modelsToTry)) {
-                Log::warning("Gemini Primary Model '{$currentModel}' exhausted all retry attempts. Switching to Fallback Model '{$this->fallbackModel}'...");
+                Log::warning("Gemini Primary Model '{$currentModel}' failed. Switching to Fallback Model...");
             }
         }
 
-        // Final graceful error if all attempts and fallbacks fail
+        if ($rateLimitHit || str_contains(strtolower($lastErrorMessage), 'quota') || str_contains(strtolower($lastErrorMessage), 'rate limit')) {
+            throw new RuntimeException("Gemini API Daily Quota Exceeded (Free tier limit reached). Please update GEMINI_API_KEY in backend .env with a new key!");
+        }
+
         throw new RuntimeException("We couldn't reach the AI service right now. This is usually temporary. Please try again in a few moments.");
     }
 
