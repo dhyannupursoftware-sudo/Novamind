@@ -17,25 +17,34 @@ class UpdateSettingsRequest extends FormRequest
      */
     public function rules(): array
     {
-        $hexColor = ['sometimes', 'required', 'regex:/^#[0-9A-Fa-f]{6}$/'];
+        $colorRule = [
+            'sometimes',
+            'nullable',
+            'string',
+            function ($attribute, $value, $fail) {
+                if ($value !== null && $value !== '' && $value !== 'default' && !preg_match('/^#(?:[0-9A-Fa-f]{3}){1,2}$/', $value)) {
+                    $fail("The {$attribute} must be a valid hex color code (e.g. #10A37F) or 'default'.");
+                }
+            },
+        ];
 
         return [
             'theme' => ['sometimes', 'required', Rule::in(['dark', 'light', 'system'])],
             'language' => ['sometimes', 'required', 'string', 'max:12'],
             'model' => ['sometimes', 'required', 'string', 'max:80'],
             'notifications' => ['sometimes', 'boolean'],
-            'user_bubble_color' => $hexColor,
-            'user_text_color' => $hexColor,
-            'ai_accent_color' => $hexColor,
-            'chat_background_color' => $hexColor,
-            'sidebar_color' => $hexColor,
-            'header_color' => $hexColor,
-            'primary_color' => $hexColor,
-            'font_size' => ['sometimes', 'required', 'integer', 'between:13,20'],
-            'font_family' => ['sometimes', 'required', Rule::in(['Inter', 'System', 'Georgia', 'Monospace'])],
-            'border_radius' => ['sometimes', 'required', 'integer', 'between:0,28'],
-            'bubble_opacity' => ['sometimes', 'required', 'numeric', 'between:0.35,1'],
-            'ui_preferences' => ['sometimes', 'array'],
+            'user_bubble_color' => $colorRule,
+            'user_text_color' => $colorRule,
+            'ai_accent_color' => $colorRule,
+            'chat_background_color' => $colorRule,
+            'sidebar_color' => $colorRule,
+            'header_color' => $colorRule,
+            'primary_color' => $colorRule,
+            'font_size' => ['sometimes', 'required', 'integer', 'between:10,36'],
+            'font_family' => ['sometimes', 'required', 'string', 'max:64'],
+            'border_radius' => ['sometimes', 'required', 'integer', 'between:0,50'],
+            'bubble_opacity' => ['sometimes', 'required', 'numeric', 'between:0,1'],
+            'ui_preferences' => ['sometimes', 'nullable', 'array'],
             'ui_preferences.chatBubbleStyle' => ['sometimes', Rule::in(['modern-pill', 'compact-classic', 'glassmorphism'])],
             'ui_preferences.fontSize' => ['sometimes', Rule::in(['small', 'medium', 'large'])],
             'ui_preferences.autoScroll' => ['sometimes', 'boolean'],
