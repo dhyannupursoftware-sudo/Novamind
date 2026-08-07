@@ -90,11 +90,16 @@ export const ChatMessageComposer: React.FC<ChatMessageComposerProps> = ({
     adjustHeight()
   }, [adjustHeight])
 
-  // Key Down Handler: Enter -> New line, Ctrl+Enter or Cmd+Enter -> Send
+  const canSend = Boolean(prompt.trim() || pendingAttachments.length > 0)
+
+  // Key Down Handler: Enter -> Send message, Shift+Enter -> New line
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      if (e.nativeEvent.isComposing) return
       e.preventDefault()
-      onSend()
+      if (canSend && !isSending && !isUploadingFiles) {
+        onSend()
+      }
     }
   }
 
@@ -171,7 +176,6 @@ export const ChatMessageComposer: React.FC<ChatMessageComposerProps> = ({
     requestAnimationFrame(adjustHeight)
   }
 
-  const canSend = Boolean(prompt.trim() || pendingAttachments.length > 0)
 
   // Plus Menu Popover Renderer
   const renderPlusButton = (buttonSizeClasses: string = 'size-8 sm:size-8.5') => (
@@ -180,8 +184,8 @@ export const ChatMessageComposer: React.FC<ChatMessageComposerProps> = ({
         type="button"
         onClick={() => setPlusMenuOpen((prev) => !prev)}
         disabled={isSending || isUploadingFiles}
-        className={`${buttonSizeClasses} rounded-full bg-white/10 hover:bg-white/15 text-slate-200 hover:text-white transition flex items-center justify-center shrink-0 cursor-pointer ${
-          plusMenuOpen ? 'bg-white/20 text-white' : ''
+        className={`${buttonSizeClasses} rounded-full text-slate-300 hover:bg-white/10 hover:text-white transition flex items-center justify-center shrink-0 cursor-pointer ${
+          plusMenuOpen ? 'bg-white/10 text-white' : ''
         }`}
         title="Add attachments or templates"
       >
@@ -282,7 +286,7 @@ export const ChatMessageComposer: React.FC<ChatMessageComposerProps> = ({
               ? 'bg-[#2563eb]/40 text-white/40 cursor-not-allowed'
               : 'bg-[#2563eb] hover:bg-[#1d4ed8] text-white active:scale-95 cursor-pointer'
           }`}
-          title="Send message (Ctrl+Enter)"
+          title="Send message (Enter)"
         >
           <ArrowUp size={16} className="text-white stroke-[2.5]" />
         </button>
