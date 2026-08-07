@@ -17,10 +17,10 @@ class GeminiService
 
     public function __construct()
     {
-        $this->apiKey = (string) config('services.gemini.api_key', '');
-        $this->model = (string) config('services.gemini.model', 'gemini-2.5-flash');
-        $this->fallbackModel = (string) config('services.gemini.fallback_model', 'gemini-1.5-flash');
-        $this->timeout = (int) config('services.gemini.timeout', 30);
+        $this->apiKey = (string) (config('services.gemini.api_key') ?: env('GEMINI_API_KEY', ''));
+        $this->model = (string) (config('services.gemini.model') ?: 'gemini-1.5-flash');
+        $this->fallbackModel = (string) (config('services.gemini.fallback_model') ?: 'gemini-2.0-flash');
+        $this->timeout = (int) (config('services.gemini.timeout') ?: 20);
         $this->systemInstruction = (string) config('services.gemini.system_instruction', '');
     }
 
@@ -77,7 +77,7 @@ class GeminiService
                 ? 'model'
                 : 'user';
 
-            $content = trim((string)($msg['content'] ?? ''));
+            $content = trim((string) ($msg['content'] ?? ''));
             $parts = [];
 
             if ($content !== '') {
@@ -90,15 +90,25 @@ class GeminiService
                     $url = $att['url'] ?? '';
                     if (str_starts_with($mime, 'image/') && !empty($url)) {
                         $relativePath = ltrim(parse_url($url, PHP_URL_PATH) ?? '', '/');
+                        
+                        // Check public path & storage path
                         $fullPath = public_path($relativePath);
+                        if (!file_exists($fullPath)) {
+                            $storageRelative = str_replace('storage/', '', $relativePath);
+                            $fullPath = storage_path('app/public/' . $storageRelative);
+                        }
+
                         if (file_exists($fullPath)) {
-                            $base64 = base64_encode(file_get_contents($fullPath));
-                            $parts[] = [
-                                'inlineData' => [
-                                    'mimeType' => $mime,
-                                    'data' => $base64,
-                                ]
-                            ];
+                            $fileBytes = @file_get_contents($fullPath);
+                            if ($fileBytes !== false) {
+                                $base64 = base64_encode($fileBytes);
+                                $parts[] = [
+                                    'inlineData' => [
+                                        'mimeType' => $mime,
+                                        'data' => $base64,
+                                    ]
+                                ];
+                            }
                         }
                     }
                 }
@@ -115,7 +125,7 @@ class GeminiService
         }
 
         if (empty($contents)) {
-            throw new RuntimeException('No messages found.');
+            throw new RuntimeException('No valid conversation messages found to send to AI.');
         }
 
         $systemInstruction = $customSystemInstruction ?? $this->systemInstruction;
@@ -147,9 +157,8 @@ class GeminiService
     private function executeApiCallWithRetryAndFallback(array $payload): string
     {
         @set_time_limit(60);
-        $modelsToTry = array_values(array_unique(array_filter([$this->model, $this->fallbackModel])));
+        $modelsToTry = array_values(array_unique(array_filter([$this->model, $this->fallbackModel, 'gemini-1.5-flash'])));
 
-        // Fast retry delays in seconds (Attempt 1: 0s, Attempt 2: 1s)
         $delays = [0, 1];
         $retryableStatusCodes = [500, 502, 503, 504, 0];
         $rateLimitHit = false;
@@ -172,7 +181,7 @@ class GeminiService
 
                 try {
                     $response = Http::withoutVerifying()
-                        ->timeout(12)
+                        ->timeout($this->timeout)
                         ->acceptJson()
                         ->post($url, $payload);
 
@@ -193,7 +202,7 @@ class GeminiService
                         }
                         $errorMessage = 'Empty response content received from Gemini API.';
                     } else {
-                        $errorMessage = $response->json('error.message') ?? "HTTP {$statusCode} Error: " . $response->body();
+                        $errorMessage = data_get($response->json(), 'error.message') ?? "HTTP {$statusCode} Error: " . $response->body();
                     }
                 } catch (Throwable $e) {
                     $durationMs = round((microtime(true) - $startTime) * 1000, 2);
@@ -214,7 +223,6 @@ class GeminiService
                     'duration_ms' => $durationMs,
                 ]);
 
-                // On 429 Rate Limit or 404 Model Not Found, break immediately to try fallback model
                 if ($statusCode === 429 || $statusCode === 404) {
                     break;
                 }
@@ -233,7 +241,7 @@ class GeminiService
             throw new RuntimeException("Gemini API Daily Quota Exceeded (Free tier limit reached). Please update GEMINI_API_KEY in backend .env with a new key!");
         }
 
-        throw new RuntimeException("We couldn't reach the AI service right now. This is usually temporary. Please try again in a few moments.");
+        throw new RuntimeException("AI Service Error: " . ($lastErrorMessage ?: "Unable to reach Gemini AI API."));
     }
 
     public function health(): array
