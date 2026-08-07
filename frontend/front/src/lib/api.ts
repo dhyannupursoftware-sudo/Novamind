@@ -2,7 +2,7 @@ import axios, { AxiosError } from 'axios'
 import type { ApiValidationError } from '../types/api'
 
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api',
+  baseURL: import.meta.env.VITE_API_URL ?? 'https://novamind-backend-mm0f.onrender.com',
   headers: {
     Accept: 'application/json',
     'Content-Type': 'application/json',
