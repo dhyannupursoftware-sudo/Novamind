@@ -4,6 +4,8 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Carbon;
+use Throwable;
 
 class ChatResource extends JsonResource
 {
@@ -18,10 +20,31 @@ class ChatResource extends JsonResource
             'title' => $this->title,
             'pinned' => (bool) $this->pinned,
             'saved' => (bool) $this->saved,
-            'created_at' => $this->created_at?->toISOString(),
-            'updated_at' => $this->updated_at?->toISOString(),
+            'created_at' => $this->formatDateTime($this->created_at),
+            'updated_at' => $this->formatDateTime($this->updated_at),
             'messages_count' => $this->whenCounted('messages'),
             'messages' => MessageResource::collection($this->whenLoaded('messages')),
         ];
+    }
+
+    private function formatDateTime(mixed $date): ?string
+    {
+        if ($date === null) {
+            return null;
+        }
+
+        if ($date instanceof Carbon) {
+            return $date->toISOString();
+        }
+
+        if (is_string($date)) {
+            try {
+                return Carbon::parse($date)->toISOString();
+            } catch (Throwable) {
+                return $date;
+            }
+        }
+
+        return null;
     }
 }

@@ -4,6 +4,8 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Carbon;
+use Throwable;
 
 class SettingResource extends JsonResource
 {
@@ -31,7 +33,28 @@ class SettingResource extends JsonResource
             'border_radius' => (int) $this->border_radius,
             'bubble_opacity' => (float) $this->bubble_opacity,
             'ui_preferences' => $this->ui_preferences ?? [],
-            'updated_at' => $this->updated_at?->toISOString(),
+            'updated_at' => $this->formatDateTime($this->updated_at),
         ];
+    }
+
+    private function formatDateTime(mixed $date): ?string
+    {
+        if ($date === null) {
+            return null;
+        }
+
+        if ($date instanceof Carbon) {
+            return $date->toISOString();
+        }
+
+        if (is_string($date)) {
+            try {
+                return Carbon::parse($date)->toISOString();
+            } catch (Throwable) {
+                return $date;
+            }
+        }
+
+        return null;
     }
 }
