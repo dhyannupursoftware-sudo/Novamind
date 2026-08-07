@@ -3,7 +3,7 @@ services:
     name: novamind-backend
     env: docker
     rootDir: backend/back
-    dockerfilePath: backend/back/Dockerfile
+    dockerfilePath: Dockerfile
     plan: free
     healthCheckPath: /health
     envVars:
@@ -28,6 +28,10 @@ services:
       - key: DB_USERNAME
         sync: false
       - key: DB_PASSWORD
+        sync: false
+      - key: MYSQL_ATTR_SSL_CA
+        sync: false
+      - key: MYSQL_ATTR_SSL_VERIFY_SERVER_CERT
         sync: false
       - key: GEMINI_API_KEY
         sync: false

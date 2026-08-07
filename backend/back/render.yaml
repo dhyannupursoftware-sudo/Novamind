@@ -28,6 +28,10 @@ services:
         sync: false
       - key: DB_PASSWORD
         sync: false
+      - key: MYSQL_ATTR_SSL_CA
+        sync: false
+      - key: MYSQL_ATTR_SSL_VERIFY_SERVER_CERT
+        sync: false
       - key: GEMINI_API_KEY
         sync: false
       - key: FRONTEND_URL
