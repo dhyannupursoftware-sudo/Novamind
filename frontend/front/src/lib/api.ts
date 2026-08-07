@@ -1,51 +1,80 @@
-import axios, { AxiosError } from 'axios'
-import type { ApiValidationError } from '../types/api'
+import axios, { AxiosError } from "axios";
+import type { ApiValidationError } from "../types/api";
+
+const getBaseUrl = (): string => {
+  const envUrl =
+    import.meta.env.VITE_API_URL ||
+    "https://novamind-backend-mm0f.onrender.com";
+
+  const trimmed = envUrl.replace(/\/+$/, "");
+
+  return trimmed.endsWith("/api") ? trimmed : `${trimmed}/api`;
+};
 
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL ?? 'https://novamind-backend-mm0f.onrender.com',
+  baseURL: getBaseUrl(),
   headers: {
-    Accept: 'application/json',
-    'Content-Type': 'application/json',
+    Accept: "application/json",
+    "Content-Type": "application/json",
   },
-})
+});
+
+api.interceptors.request.use((config) => {
+  const token =
+    localStorage.getItem("novamind.auth.token") ||
+    sessionStorage.getItem("novamind.auth.token");
+
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  return config;
+});
 
 export function setAuthToken(token: string | null): void {
   if (token) {
-    api.defaults.headers.common.Authorization = `Bearer ${token}`
-    return
+    api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+  } else {
+    delete api.defaults.headers.common["Authorization"];
   }
-
-  delete api.defaults.headers.common.Authorization
 }
 
 export function errorMessage(error: unknown): string {
-  if (!axios.isAxiosError<ApiValidationError>(error)) {
-    if (error instanceof Error && error.message) {
-      return error.message
+  if (!axios.isAxiosError(error)) {
+    if (error instanceof Error) {
+      return error.message;
     }
-    return 'Something went wrong. Please try again.'
+
+    return "Something went wrong. Please try again.";
   }
 
-  const axiosError = error as AxiosError<ApiValidationError>
+  const axiosError = error as AxiosError<ApiValidationError>;
 
   if (!axiosError.response) {
-    return 'Cannot connect to backend server. Please ensure Laravel backend is running.'
+    return "Unable to connect to NovaMind server. Please try again.";
   }
 
-  const payload = axiosError.response.data
+  const payload = axiosError.response.data;
 
-  if (payload && typeof payload === 'object') {
-    if (payload.errors && typeof payload.errors === 'object') {
-      const errorValues = Object.values(payload.errors)
-      if (errorValues.length > 0 && Array.isArray(errorValues[0]) && errorValues[0].length > 0) {
-        return errorValues[0][0]
+  if (payload && typeof payload === "object") {
+    if ("errors" in payload && payload.errors) {
+      const values = Object.values(payload.errors);
+
+      if (
+        values.length &&
+        Array.isArray(values[0]) &&
+        values[0].length
+      ) {
+        return values[0][0];
       }
     }
 
-    if (payload.message && typeof payload.message === 'string') {
-      return payload.message
+    if ("message" in payload && typeof payload.message === "string") {
+      return payload.message;
     }
   }
 
-  return axiosError.message || 'Something went wrong. Please try again.'
+  return axiosError.message || "Something went wrong.";
 }
+
+export default api;
