@@ -21,10 +21,10 @@ class StoreMessageRequest extends FormRequest
             'role' => ['required', Rule::in(['system', 'user', 'assistant'])],
             'content' => ['nullable', 'string', 'max:65535', 'required_without:attachments'],
             'attachments' => ['nullable', 'array', 'max:8'],
-            'attachments.*.name' => ['required', 'string', 'max:255'],
-            'attachments.*.url' => ['required', 'string', 'max:2048'],
-            'attachments.*.type' => ['required', 'string', 'max:100'],
-            'attachments.*.size' => ['required', 'integer', 'min:0'],
+            'attachments.*.name' => ['required_with:attachments', 'string', 'max:255'],
+            'attachments.*.url' => ['required_with:attachments', 'string', 'max:2048'],
+            'attachments.*.type' => ['required_with:attachments', 'string', 'max:100'],
+            'attachments.*.size' => ['required_with:attachments', 'integer', 'min:0'],
         ];
     }
 }

@@ -37,9 +37,9 @@ return [
 
     'gemini' => [
         'api_key' => env('GEMINI_API_KEY'),
-        'model' => env('GEMINI_MODEL', 'gemini-1.5-flash'),
-        'fallback_model' => env('GEMINI_FALLBACK_MODEL', 'gemini-2.0-flash'),
-        'timeout' => env('GEMINI_TIMEOUT', 20),
+        'model' => env('GEMINI_MODEL', 'gemini-flash-latest'),
+        'fallback_model' => env('GEMINI_FALLBACK_MODEL', 'gemini-3.5-flash'),
+        'timeout' => (int) env('GEMINI_TIMEOUT', 30),
         'system_instruction' => env('GEMINI_SYSTEM_INSTRUCTION', "You are NovaMind AI, a premium AI assistant designed to help users learn, solve problems, write code, improve English, brainstorm ideas, and complete everyday tasks.
 
 ========================================
