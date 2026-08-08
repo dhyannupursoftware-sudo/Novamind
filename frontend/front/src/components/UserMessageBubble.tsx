@@ -133,7 +133,16 @@ export function UserMessageBubble({
 
               {/* Bottom fade mask when collapsed */}
               {isOverflowing && !isExpanded && (
-                <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-[#2f2f2f] to-transparent rounded-b-[24px]" />
+                <div
+                  className="pointer-events-none absolute bottom-0 left-0 right-0 h-10 rounded-b-[24px]"
+                  style={{
+                    background: `linear-gradient(to top, ${
+                      userBubbleColor && userBubbleColor !== 'default'
+                        ? userBubbleColor
+                        : '#2f2f2f'
+                    }, transparent)`,
+                  }}
+                />
               )}
             </div>
 
