@@ -2,17 +2,28 @@ import axios, { AxiosError } from "axios";
 import type { ApiValidationError } from "../types/api";
 
 const getBaseUrl = (): string => {
-  const envUrl =
-    import.meta.env.VITE_API_URL ||
-    "https://novamind-backend-mm0f.onrender.com";
+  if (import.meta.env.VITE_API_URL) {
+    const trimmed = import.meta.env.VITE_API_URL.replace(/\/+$/, "");
+    return trimmed.endsWith("/api") ? trimmed : `${trimmed}/api`;
+  }
 
-  const trimmed = envUrl.replace(/\/+$/, "");
+  // Automatic smart detection for local development vs production
+  if (
+    typeof window !== "undefined" &&
+    (window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1" ||
+      window.location.hostname.startsWith("192.168."))
+  ) {
+    return "http://127.0.0.1:8000/api";
+  }
 
-  return trimmed.endsWith("/api") ? trimmed : `${trimmed}/api`;
+  // Production Render deployment default
+  return "https://novamind-backend-mm0f.onrender.com/api";
 };
 
 export const api = axios.create({
   baseURL: getBaseUrl(),
+  timeout: 45000,
   headers: {
     Accept: "application/json",
     "Content-Type": "application/json",
