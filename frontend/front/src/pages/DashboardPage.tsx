@@ -1558,7 +1558,7 @@ export function DashboardPage() {
         >
 
           {/* FLOATING CONTROLS HEADER */}
-          <header className="sticky top-0 z-20 w-full px-3 md:px-6 py-3 flex items-center justify-between bg-transparent border-none select-none pointer-events-none -mb-14">
+          <header className="sticky top-0 z-20 w-full px-3 md:px-6 py-2.5 flex items-center justify-between bg-black/60 backdrop-blur-md border-b border-white/5 select-none pointer-events-none">
             {/* MOBILE ONLY TOP LEFT SIDEBAR OPENER CIRCULAR BUTTON */}
             {!isFullscreen && (
               <div className="flex md:hidden items-center pointer-events-auto select-none">
@@ -1603,13 +1603,13 @@ export function DashboardPage() {
             </div>
           </header>
 
-          {/* CHAT MESSAGES PANEL - Centered Reading Experience */}
+          {/* CHAT MESSAGES PANEL - Centered Reading Experience with Full Top & Bottom Clearance */}
           <div
             ref={chatViewportRef}
             onScroll={handleScroll}
-            className="flex-1 overflow-y-auto scrollbar-thin px-4 sm:px-6 lg:px-8 pt-16 sm:pt-20 md:pt-24 pb-32 md:pb-36 flex flex-col items-center justify-center gap-4 md:gap-6 bg-transparent"
+            className="flex-1 overflow-y-auto scrollbar-thin px-3 sm:px-6 lg:px-8 pt-4 sm:pt-6 md:pt-8 pb-40 sm:pb-48 md:pb-52 flex flex-col items-center gap-4 md:gap-6 bg-transparent"
           >
-            <div className="w-full max-w-full sm:max-w-[720px] md:max-w-[800px] lg:max-w-[850px] xl:max-w-[900px] mx-auto flex-1 flex flex-col justify-start">
+            <div className="w-full max-w-full sm:max-w-[720px] md:max-w-[800px] lg:max-w-[850px] xl:max-w-[900px] mx-auto flex flex-col min-h-full justify-start">
 
               {isLoadingMessages ? (
                 <div className="space-y-8 py-6 flex-1 select-none">
@@ -1626,7 +1626,7 @@ export function DashboardPage() {
               ) : filteredMessages.length === 0 && !isSending && !isThinking ? (
 
                 /* EMPTY STATE INTRO CARD: Personalized User Welcome Greeting */
-                <div className="flex-1 flex flex-col items-center justify-center text-center select-none px-4">
+                <div className="my-auto flex flex-col items-center justify-center text-center select-none px-4 py-8">
                   <div className="max-w-md space-y-4">
                     <motion.div
                       animate={{ rotate: [0, 5, -5, 0] }}
@@ -1951,8 +1951,8 @@ export function DashboardPage() {
 
             </div>
 
-            {/* Scroll bottom anchor */}
-            <div ref={messageEndRef} />
+            {/* Scroll bottom anchor with ample clearance above composer */}
+            <div ref={messageEndRef} className="h-10 sm:h-14 shrink-0 pointer-events-none" />
 
             {/* Directional Mutually Exclusive Scroll FAB Buttons (Laptop & Desktop only) */}
             <div className="hidden md:flex fixed bottom-28 right-6 z-30 flex-col gap-2 pointer-events-auto">
