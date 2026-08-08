@@ -57,6 +57,7 @@ import { QuestionNavShortcut } from '../components/QuestionNavShortcut'
 import { ModelSelector, AI_MODELS, type AIModel } from '../components/ModelSelector'
 import { ArtifactsDrawer } from '../components/ArtifactsDrawer'
 import { ChatMessageComposer } from '../components/ChatMessageComposer'
+import { UserMessageBubble } from '../components/UserMessageBubble'
 
 export function DashboardPage() {
   const { logout, user } = useAuth()
@@ -1671,171 +1672,38 @@ export function DashboardPage() {
                         className={`w-full ${isUser ? 'flex flex-col items-end' : 'flex flex-col items-start'}`}
                       >
                         {isUser ? (
-                          /* User Prompt Bubble (ChatGPT 100% Pill Design with bottom hover action bar) */
-                          <div className="group relative flex flex-col items-end w-full space-y-1">
-                            <div
-                              className={`${editingMessageId === message.id ? 'w-full max-w-[92%] sm:max-w-[85%] md:max-w-[70%]' : 'max-w-[92%] sm:max-w-[85%] md:max-w-[70%] w-fit'} user-message-bubble rounded-[24px] px-4.5 py-2.5 sm:px-5 sm:py-2.5 shadow-sm relative select-text break-words overflow-wrap-anywhere animate-fade-in-up`}
-                              style={{
-                                contentVisibility: 'auto',
-                                containIntrinsicSize: '100px',
-                                backgroundColor: uiSettings.userBubbleColor && uiSettings.userBubbleColor !== 'default' ? uiSettings.userBubbleColor : undefined
-                              }}
-                            >
-                              {editingMessageId === message.id ? (
-                                <div className="space-y-2.5">
-                                  <textarea
-                                    value={editContent}
-                                    onChange={(e) => setEditContent(e.target.value)}
-                                    className="w-full min-h-[80px] bg-slate-900 text-white rounded-lg p-2.5 text-sm focus:outline-none border border-indigo-500/40"
-                                    autoFocus
-                                  />
-                                  <div className="flex justify-end gap-2 text-xs">
-                                    <button
-                                      onClick={() => setEditingMessageId(null)}
-                                      className="px-3 py-1.5 rounded-lg border border-white/10 text-slate-300 hover:bg-white/10 hover:text-white transition font-medium"
-                                    >
-                                      Cancel
-                                    </button>
-                                    <button
-                                      onClick={() => handleSaveEditPrompt(message.id)}
-                                      className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold shadow-md transition"
-                                    >
-                                      Submit
-                                    </button>
-                                  </div>
-                                </div>
-                              ) : (
-                                <>
-                                  {/* Content */}
-                                  <p className="whitespace-pre-wrap text-sm sm:text-base text-slate-100 font-normal leading-normal">
-                                    {message.content}
-                                  </p>
-
-                                  {/* User Attachments - Image previews directly */}
-                                  {message.attachments && message.attachments.some((f) => f.type.startsWith('image/') && !deletedAttachmentUrls.includes(f.url)) && (
-                                    <div className="mt-2.5 flex flex-wrap gap-2 justify-end">
-                                      {message.attachments.filter((f) => f.type.startsWith('image/') && !deletedAttachmentUrls.includes(f.url)).map((file, idx) => (
-                                        <div key={idx} className="relative group">
-                                          <button
-                                            onClick={() => {
-                                              setActiveImageViewerUrl(file.url)
-                                              setActiveImageViewerName(file.name)
-                                              setZoomScale(1)
-                                              setImageFullscreen(false)
-                                            }}
-                                            className="block overflow-hidden rounded-xl border border-white/10 hover:border-white/20 transition max-w-[280px] shadow-lg text-left"
-                                          >
-                                            <img src={file.url} alt={file.name} className="max-h-56 w-full object-cover rounded-xl" />
-                                          </button>
-                                          {/* Quick Actions overlay for images */}
-                                          <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-[#1e1e1e]/85 backdrop-blur rounded-lg p-1 border border-white/10 shadow-lg">
-                                            <button onClick={() => handleDownloadAttachment(file.url, file.name)} className="p-1 hover:bg-white/10 rounded text-slate-350 hover:text-white" title="Download"><FileDown size={11} /></button>
-                                            <button onClick={() => handleCopyLink(file.url)} className="p-1 hover:bg-white/10 rounded text-slate-350 hover:text-white" title="Copy Link"><Copy size={11} /></button>
-                                            <button onClick={() => handleDeleteAttachment(file.url)} className="p-1 hover:bg-rose-500/25 rounded text-rose-400 hover:text-rose-300" title="Delete"><Trash2 size={11} /></button>
-                                          </div>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  )}
-
-                                  {/* User Attachments - Files rendering */}
-                                  {message.attachments && message.attachments.some((f) => !f.type.startsWith('image/') && !deletedAttachmentUrls.includes(f.url)) && (
-                                    <div className="mt-2.5 flex flex-wrap gap-2 justify-end">
-                                      {message.attachments.filter((f) => !f.type.startsWith('image/') && !deletedAttachmentUrls.includes(f.url)).map((file, idx) => {
-                                        const isVideo = file.type.startsWith('video/')
-                                        const isPdf = file.type === 'application/pdf' || file.name.endsWith('.pdf')
-
-                                        return (
-                                          <div
-                                            key={idx}
-                                            className="relative group flex items-center gap-3 rounded-xl border border-white/10 bg-slate-950/60 p-3 pr-4 hover:bg-slate-950 transition min-w-[220px] max-w-[280px] text-left"
-                                          >
-                                            <div className="size-10 rounded-lg bg-white/5 flex items-center justify-center shrink-0">
-                                              {isVideo ? (
-                                                <Play size={18} className="text-indigo-400" />
-                                              ) : isPdf ? (
-                                                <FileText size={18} className="text-rose-400" />
-                                              ) : (
-                                                <FileText size={18} className="text-cyan-400" />
-                                              )}
-                                            </div>
-                                            <div className="min-w-0 flex-1">
-                                              <p className="truncate text-xs font-semibold text-white">{file.name}</p>
-                                              <p className="text-[10px] text-slate-500 font-medium">{(file.size / 1024).toFixed(1)} KB</p>
-                                            </div>
-                                            {/* Quick Actions overlay for files */}
-                                            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-[#212121] border border-white/10 rounded-lg p-1 shadow-lg">
-                                              {isVideo ? (
-                                                <button
-                                                  onClick={() => {
-                                                    setActiveVideoPlayerUrl(file.url)
-                                                    setActiveVideoPlayerName(file.name)
-                                                  }}
-                                                  className="p-1 hover:bg-white/10 rounded text-indigo-400"
-                                                  title="Play Video"
-                                                >
-                                                  <Play size={11} />
-                                                </button>
-                                              ) : (
-                                                <button
-                                                  onClick={() => window.open(file.url, '_blank')}
-                                                  className="p-1 hover:bg-white/10 rounded text-cyan-400"
-                                                  title="Open in Tab"
-                                                >
-                                                  <ArrowUp size={11} className="rotate-45" />
-                                                </button>
-                                              )}
-                                              <button onClick={() => handleDownloadAttachment(file.url, file.name)} className="p-1 hover:bg-white/10 rounded text-slate-300" title="Download"><FileDown size={11} /></button>
-                                              <button onClick={() => handleCopyLink(file.url)} className="p-1 hover:bg-white/10 rounded text-slate-300" title="Copy Link"><Copy size={11} /></button>
-                                              <button onClick={() => handleDeleteAttachment(file.url)} className="p-1 hover:bg-rose-500/20 rounded text-rose-400" title="Delete"><Trash2 size={11} /></button>
-                                            </div>
-                                          </div>
-                                        )
-                                      })}
-                                    </div>
-                                  )}
-                                </>
-                              )}
-                            </div>
-
-                            {/* 3 Hover Option Buttons below user bubble (Copy, Share, Edit) matching exact user screenshot */}
-                            {editingMessageId !== message.id && (
-                              <div className="flex items-center gap-2 mt-1 mr-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-slate-400 select-none">
-                                {/* 1. Copy */}
-                                <button
-                                  onClick={() => handleCopyResponse(message.content)}
-                                  className="p-1 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition duration-150 active:scale-95 cursor-pointer"
-                                  title="Copy prompt"
-                                >
-                                  <Copy size={15} />
-                                </button>
-
-                                {/* 2. Share */}
-                                <button
-                                  onClick={() => {
-                                    handleCopyLink(window.location.href)
-                                    showToast('Prompt link copied to clipboard', 'success')
-                                  }}
-                                  className="p-1 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition duration-150 active:scale-95 cursor-pointer"
-                                  title="Share prompt"
-                                >
-                                  <Upload size={15} />
-                                </button>
-
-                                {/* 3. Edit */}
-                                <button
-                                  onClick={() => {
-                                    setEditingMessageId(message.id)
-                                    setEditContent(message.content)
-                                  }}
-                                  className="p-1 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition duration-150 active:scale-95 cursor-pointer"
-                                  title="Edit prompt"
-                                >
-                                  <Edit3 size={15} />
-                                </button>
-                              </div>
-                            )}
-                          </div>
+                          <UserMessageBubble
+                            message={message}
+                            isEditing={editingMessageId === message.id}
+                            editContent={editContent}
+                            setEditContent={setEditContent}
+                            onCancelEdit={() => setEditingMessageId(null)}
+                            onSaveEdit={handleSaveEditPrompt}
+                            userBubbleColor={uiSettings.userBubbleColor}
+                            deletedAttachmentUrls={deletedAttachmentUrls}
+                            onOpenImageViewer={(url, name) => {
+                              setActiveImageViewerUrl(url)
+                              setActiveImageViewerName(name)
+                              setZoomScale(1)
+                              setImageFullscreen(false)
+                            }}
+                            onOpenVideoPlayer={(url, name) => {
+                              setActiveVideoPlayerUrl(url)
+                              setActiveVideoPlayerName(name)
+                            }}
+                            onDownloadAttachment={handleDownloadAttachment}
+                            onCopyLink={handleCopyLink}
+                            onDeleteAttachment={handleDeleteAttachment}
+                            onCopyPrompt={handleCopyResponse}
+                            onSharePrompt={() => {
+                              handleCopyLink(window.location.href)
+                              showToast('Prompt link copied to clipboard', 'success')
+                            }}
+                            onStartEdit={(msg) => {
+                              setEditingMessageId(msg.id)
+                              setEditContent(msg.content)
+                            }}
+                          />
                         ) : (
                           /* Assistant Response (ChatGPT 100% Centered Layout matching Image 1) */
                           <div
