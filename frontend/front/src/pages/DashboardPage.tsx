@@ -54,6 +54,7 @@ import { PromptLibraryModal } from '../components/PromptLibraryModal'
 import { CommandPalette } from '../components/CommandPalette'
 import { exportChatToMarkdown } from '../lib/ChatExportService'
 import { QuestionNavShortcut } from '../components/QuestionNavShortcut'
+import { ModelSelector, AI_MODELS, type AIModel } from '../components/ModelSelector'
 import { ArtifactsDrawer } from '../components/ArtifactsDrawer'
 import { ChatMessageComposer } from '../components/ChatMessageComposer'
 import { UserMessageBubble } from '../components/UserMessageBubble'
@@ -125,6 +126,7 @@ export function DashboardPage() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isPromptLibraryOpen, setIsPromptLibraryOpen] = useState(false)
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false)
+  const [selectedModel, setSelectedModel] = useState<AIModel>(AI_MODELS[0])
   const [artifactsDrawerState, setArtifactsDrawerState] = useState<{
     isOpen: boolean
     code: string
@@ -1555,38 +1557,39 @@ export function DashboardPage() {
           }}
         >
 
-          {/* STICKY MINIMALIST TOP CONTROLS (Logo & Fullscreen only - No bulky header) */}
-          <div className="sticky top-0 z-30 w-full px-3 md:px-6 py-2.5 flex items-center justify-between pointer-events-none select-none">
-            {/* Left: Mobile Sidebar Opener + Sticky Chatbot Logo */}
+          {/* STICKY MINIMALIST TOP CONTROLS (Seamless transparent bar with Logo, Model Dropdown & Fullscreen) */}
+          <div className="sticky top-0 z-30 w-full px-3 md:px-6 py-2 flex items-center justify-between pointer-events-none select-none bg-transparent border-none">
+            {/* Left: Mobile Sidebar Opener + Borderless Logo + Model Selector Dropdown */}
             <div className="flex items-center gap-2 pointer-events-auto">
               {!isFullscreen && (
                 <button
                   type="button"
                   onClick={() => setSidebarOpen(true)}
-                  className="flex md:hidden size-9 rounded-full bg-[#212121]/90 backdrop-blur-md border border-white/15 text-slate-200 hover:text-white transition items-center justify-center cursor-pointer shadow-lg active:scale-95 shrink-0"
+                  className="flex md:hidden size-8.5 rounded-full bg-transparent hover:bg-white/10 text-slate-300 hover:text-white transition items-center justify-center cursor-pointer active:scale-95 shrink-0 border-none"
                   title="Open sidebar"
                 >
                   <PanelLeft size={18} />
                 </button>
               )}
 
-              {/* Chatbot Sticky Logo */}
-              <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-black/50 backdrop-blur-md border border-white/10 shadow-md">
-                <div className="size-5.5 overflow-hidden rounded-md flex items-center justify-center shrink-0">
-                  <img src="/favicon.svg" alt="NovaMind Logo" className="size-full object-contain" />
-                </div>
-                <span className="text-xs font-bold tracking-wider text-white uppercase">
-                  NovaMind AI
-                </span>
+              {/* Chatbot Borderless Logo Icon */}
+              <div className="size-6 overflow-hidden rounded-md flex items-center justify-center shrink-0 border-none bg-transparent">
+                <img src="/favicon.svg" alt="NovaMind Logo" className="size-full object-contain" />
               </div>
+
+              {/* Model Dropdown Selector */}
+              <ModelSelector
+                selectedModelId={selectedModel.id}
+                onSelectModel={(model) => setSelectedModel(model)}
+              />
             </div>
 
-            {/* Right: Sticky Fullscreen Toggle Button */}
+            {/* Right: Borderless Fullscreen Toggle Button */}
             <div className="flex items-center gap-1.5 pointer-events-auto">
               <button
                 type="button"
                 onClick={toggleFullscreen}
-                className="rounded-xl px-2.5 py-1.5 bg-black/50 backdrop-blur-md border border-white/10 text-slate-300 hover:bg-white/10 hover:text-white transition shadow-md flex items-center gap-1.5 text-xs font-medium cursor-pointer"
+                className="px-2.5 py-1.5 bg-transparent hover:bg-white/10 text-slate-300 hover:text-white transition rounded-xl flex items-center gap-1.5 text-xs font-medium cursor-pointer border-none"
                 title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen Chat'}
               >
                 {isFullscreen ? (
@@ -1712,7 +1715,7 @@ export function DashboardPage() {
                                   </div>
                                 </div>
                                 <span className="bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 px-2 py-0.5 rounded-full font-mono text-[9px] uppercase tracking-wider font-bold">
-                                  NovaMind AI
+                                  {selectedModel.name || 'NovaMind AI'}
                                 </span>
                                 {message.content && (
                                   <span className="text-[10px] text-slate-500 font-medium hidden sm:inline">
