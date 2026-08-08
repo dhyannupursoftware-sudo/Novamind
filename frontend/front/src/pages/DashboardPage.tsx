@@ -449,8 +449,6 @@ export function DashboardPage() {
     )
   }, [messages, messageSearchQuery])
 
-  const hasMessages = filteredMessages.length > 0 || isSending || isThinking
-
   // Search Chats: Instant filtering locally by Title or Message Contents
   const filteredChats = useMemo(() => {
     if (!sidebarSearchQuery.trim()) return chats
@@ -1609,15 +1607,9 @@ export function DashboardPage() {
           <div
             ref={chatViewportRef}
             onScroll={handleScroll}
-            className={`flex-1 ${
-              hasMessages ? 'overflow-y-auto scrollbar-thin' : 'overflow-hidden'
-            } px-4 sm:px-6 lg:px-8 ${
-              hasMessages ? 'pt-16 sm:pt-20 md:pt-24 pb-32 md:pb-36' : 'pt-12 pb-24 sm:pb-28'
-            } flex flex-col items-center justify-center gap-4 md:gap-6 bg-transparent`}
+            className="flex-1 overflow-y-auto scrollbar-thin px-4 sm:px-6 lg:px-8 pt-16 sm:pt-20 md:pt-24 pb-32 md:pb-36 flex flex-col items-center justify-center gap-4 md:gap-6 bg-transparent"
           >
-            <div className={`w-full max-w-full sm:max-w-[720px] md:max-w-[800px] lg:max-w-[850px] xl:max-w-[900px] mx-auto flex-1 flex flex-col ${
-              hasMessages ? 'justify-start' : 'justify-center'
-            }`}>
+            <div className="w-full max-w-full sm:max-w-[720px] md:max-w-[800px] lg:max-w-[850px] xl:max-w-[900px] mx-auto flex-1 flex flex-col justify-start">
 
               {isLoadingMessages ? (
                 <div className="space-y-8 py-6 flex-1 select-none">
