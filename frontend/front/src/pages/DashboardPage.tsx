@@ -368,6 +368,22 @@ export function DashboardPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const imageInputRef = useRef<HTMLInputElement>(null)
   const chatViewportRef = useRef<HTMLDivElement>(null)
+  const footerRef = useRef<HTMLElement>(null)
+  const [composerHeight, setComposerHeight] = useState<number>(140)
+
+  // Measure dynamic composer height in real-time to reserve exact bottom padding
+  useEffect(() => {
+    if (!footerRef.current) return
+    const el = footerRef.current
+    const updateHeight = () => {
+      setComposerHeight(Math.ceil(el.getBoundingClientRect().height))
+    }
+    updateHeight()
+
+    const observer = new ResizeObserver(updateHeight)
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
 
   // Directional scroll handler for FAB scroll buttons
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -457,6 +473,21 @@ export function DashboardPage() {
     }
     prevMessagesCountRef.current = messages.length
   }, [messages])
+
+  // Smart assistant response auto-scroll (only if user is already near bottom of conversation)
+  useEffect(() => {
+    if (isSending || isThinking) {
+      const container = chatViewportRef.current
+      if (!container) return
+      const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 160
+      if (isNearBottom) {
+        container.scrollTo({
+          top: container.scrollHeight,
+          behavior: 'smooth'
+        })
+      }
+    }
+  }, [messages, isSending, isThinking])
 
   // Filter messages based on search query
   const [messageSearchQuery] = useState('')
@@ -1561,7 +1592,7 @@ export function DashboardPage() {
 
         {/* MAIN PANEL CONTENT VIEWPORT */}
         <div
-          className="flex-1 flex flex-col h-screen overflow-hidden transition-all duration-300 chat-bg min-w-0 relative"
+          className="flex-1 flex flex-col h-[100dvh] overflow-hidden transition-all duration-300 chat-bg min-w-0 relative"
           style={{
             paddingLeft: isFullscreen
               ? '0px'
@@ -1631,7 +1662,10 @@ export function DashboardPage() {
           <div
             ref={chatViewportRef}
             onScroll={handleScroll}
-            className="flex-1 overflow-y-auto scrollbar-thin px-3 sm:px-6 lg:px-8 pt-16 sm:pt-20 pb-44 sm:pb-52 md:pb-60 flex flex-col items-center gap-4 md:gap-6 bg-transparent"
+            className="flex-1 overflow-y-auto scrollbar-thin px-3 sm:px-6 lg:px-8 pt-16 sm:pt-20 flex flex-col items-center gap-4 md:gap-6 bg-transparent"
+            style={{
+              paddingBottom: `calc(${composerHeight}px + 20px + env(safe-area-inset-bottom, 0px))`
+            }}
           >
             <div className="w-full max-w-full sm:max-w-[720px] md:max-w-[780px] lg:max-w-[820px] mx-auto flex flex-col min-h-full justify-start">
 
@@ -2017,6 +2051,7 @@ export function DashboardPage() {
 
           {/* FIXED BOTTOM INPUT PANEL */}
           <footer
+            ref={footerRef}
             className="fixed bottom-0 right-0 p-4 bg-transparent z-15 transition-all duration-300 pointer-events-none"
             style={{
               left: isFullscreen
