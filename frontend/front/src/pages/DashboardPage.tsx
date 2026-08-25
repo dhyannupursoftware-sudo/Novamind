@@ -435,18 +435,23 @@ export function DashboardPage() {
       if (latestUserMsg && latestUserMsg.id !== lastScrolledUserMsgIdRef.current) {
         lastScrolledUserMsgIdRef.current = latestUserMsg.id
 
+        const scrollUserMessageToTop = () => {
+          const el = document.getElementById(`msg-${latestUserMsg.id}`)
+          const container = chatViewportRef.current
+          if (el && container) {
+            const elRect = el.getBoundingClientRect()
+            const containerRect = container.getBoundingClientRect()
+            const targetScrollTop = container.scrollTop + (elRect.top - containerRect.top) - 68
+            container.scrollTo({
+              top: Math.max(0, targetScrollTop),
+              behavior: 'smooth'
+            })
+          }
+        }
+
         requestAnimationFrame(() => {
-          setTimeout(() => {
-            const el = document.getElementById(`msg-${latestUserMsg.id}`)
-            const container = chatViewportRef.current
-            if (el && container) {
-              const targetTop = Math.max(0, el.offsetTop - 76)
-              container.scrollTo({
-                top: targetTop,
-                behavior: 'smooth'
-              })
-            }
-          }, 60)
+          setTimeout(scrollUserMessageToTop, 40)
+          setTimeout(scrollUserMessageToTop, 120)
         })
       }
     }
@@ -1566,9 +1571,18 @@ export function DashboardPage() {
           }}
         >
 
-          {/* FLOATING BACKGROUNDLESS TOP CONTROLS (Logo, Model Dropdown & Fullscreen) */}
-          <div className="absolute top-0 left-0 right-0 z-30 px-3 md:px-6 py-3 flex items-center justify-between pointer-events-none select-none bg-transparent border-none">
-            {/* Left: Mobile Sidebar Opener + Borderless Logo + Model Selector Dropdown */}
+          {/* FLOATING BACKGROUNDLESS TOP CONTROLS */}
+          <div
+            className="absolute top-0 right-0 z-30 px-3 md:px-6 py-3 flex items-center justify-between pointer-events-none select-none bg-transparent border-none transition-all duration-300"
+            style={{
+              left: isFullscreen
+                ? '0px'
+                : (isDesktop || isTablet
+                  ? (sidebarCollapsed ? '64px' : (isTablet ? '240px' : '260px'))
+                  : '0px')
+            }}
+          >
+            {/* Left: Mobile Sidebar Opener + Model Selector Dropdown */}
             <div className="flex items-center gap-2 pointer-events-auto">
               {!isFullscreen && (
                 <button
@@ -1580,11 +1594,6 @@ export function DashboardPage() {
                   <PanelLeft size={18} />
                 </button>
               )}
-
-              {/* Chatbot Borderless Logo Icon */}
-              <div className="size-6 overflow-hidden rounded-md flex items-center justify-center shrink-0 border-none bg-transparent">
-                <img src="/favicon.svg" alt="NovaMind Logo" className="size-full object-contain" />
-              </div>
 
               {/* Model Dropdown Selector */}
               <ModelSelector

@@ -168,11 +168,10 @@ class GeminiService
         $modelsToTry = array_values(array_unique(array_filter([
             $this->model,
             $this->fallbackModel,
+            'gemini-1.5-flash',
+            'gemini-flash-latest',
             'gemini-2.5-flash',
             'gemini-2.0-flash',
-            'gemini-1.5-flash',
-            'gemini-1.5-pro',
-            'gemini-flash-latest',
         ])));
 
         $delays = [0, 1];
