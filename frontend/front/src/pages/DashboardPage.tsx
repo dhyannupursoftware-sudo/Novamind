@@ -451,11 +451,15 @@ export function DashboardPage() {
     setShowScrollTop(false)
   }
 
-  // Scroll new user question smoothly near upper 20-25% of chat viewport
+  // Single Unified ChatGPT Scroll Controller
   const prevMessagesCountRef = useRef(messages.length)
   const lastScrolledUserMsgIdRef = useRef<string | number | null>(null)
 
   useEffect(() => {
+    const container = chatViewportRef.current
+    if (!container) return
+
+    // 1. Detect if a NEW USER MESSAGE was added
     if (messages.length > prevMessagesCountRef.current) {
       const userMessages = messages.filter((m) => m.role === 'user')
       const latestUserMsg = userMessages[userMessages.length - 1]
@@ -463,35 +467,35 @@ export function DashboardPage() {
       if (latestUserMsg && latestUserMsg.id !== lastScrolledUserMsgIdRef.current) {
         lastScrolledUserMsgIdRef.current = latestUserMsg.id
 
-        const scrollUserMessageToTop = () => {
+        const scrollUserMessageToUpperViewport = () => {
           const el = document.getElementById(`msg-${latestUserMsg.id}`)
-          const container = chatViewportRef.current
           if (el && container) {
-            const elRect = el.getBoundingClientRect()
             const containerRect = container.getBoundingClientRect()
-            const desiredTopOffset = Math.max(76, Math.floor(container.clientHeight * 0.22))
-            const targetScrollTop = container.scrollTop + (elRect.top - containerRect.top) - desiredTopOffset
+            const messageRect = el.getBoundingClientRect()
+
+            // Desired top position of user message (upper 20% of chat viewport)
+            const desiredTop = containerRect.top + Math.min(160, Math.floor(container.clientHeight * 0.20))
+            const delta = messageRect.top - desiredTop
+
             container.scrollTo({
-              top: Math.max(0, targetScrollTop),
+              top: Math.max(0, container.scrollTop + delta),
               behavior: 'smooth'
             })
           }
         }
 
         requestAnimationFrame(() => {
-          setTimeout(scrollUserMessageToTop, 40)
-          setTimeout(scrollUserMessageToTop, 120)
+          setTimeout(scrollUserMessageToUpperViewport, 40)
+          setTimeout(scrollUserMessageToUpperViewport, 120)
         })
+
+        prevMessagesCountRef.current = messages.length
+        return
       }
     }
-    prevMessagesCountRef.current = messages.length
-  }, [messages])
 
-  // Smart assistant response auto-scroll (only if user is already near bottom of conversation)
-  useEffect(() => {
+    // 2. Assistant response streaming follow (ONLY if not positioning a new user message)
     if (isSending || isThinking) {
-      const container = chatViewportRef.current
-      if (!container) return
       const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 160
       if (isNearBottom) {
         container.scrollTo({
@@ -500,6 +504,8 @@ export function DashboardPage() {
         })
       }
     }
+
+    prevMessagesCountRef.current = messages.length
   }, [messages, isSending, isThinking])
 
   // Filter messages based on search query
