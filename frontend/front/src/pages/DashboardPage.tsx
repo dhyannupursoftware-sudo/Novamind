@@ -423,7 +423,7 @@ export function DashboardPage() {
     setShowScrollTop(false)
   }
 
-  // Scroll new user question smoothly toward top of viewport
+  // Scroll new user question smoothly near top of chat viewport
   const prevMessagesCountRef = useRef(messages.length)
   const lastScrolledUserMsgIdRef = useRef<string | number | null>(null)
 
@@ -440,13 +440,13 @@ export function DashboardPage() {
             const el = document.getElementById(`msg-${latestUserMsg.id}`)
             const container = chatViewportRef.current
             if (el && container) {
-              const targetTop = Math.max(0, el.offsetTop - 72)
+              const targetTop = Math.max(0, el.offsetTop - 76)
               container.scrollTo({
                 top: targetTop,
                 behavior: 'smooth'
               })
             }
-          }, 50)
+          }, 60)
         })
       }
     }
@@ -1137,9 +1137,8 @@ export function DashboardPage() {
                           <span>Pinned</span>
                           <ChevronDown
                             size={14}
-                            className={`text-slate-400 shrink-0 transition-transform duration-200 ${
-                              isPinnedExpanded ? 'rotate-0' : '-rotate-90'
-                            }`}
+                            className={`text-slate-400 shrink-0 transition-transform duration-200 ${isPinnedExpanded ? 'rotate-0' : '-rotate-90'
+                              }`}
                           />
                         </button>
                       )}
@@ -1158,9 +1157,8 @@ export function DashboardPage() {
                         <span>Recents</span>
                         <ChevronDown
                           size={14}
-                          className={`text-slate-400 shrink-0 transition-transform duration-200 ${
-                            isRecentExpanded ? 'rotate-0' : '-rotate-90'
-                          }`}
+                          className={`text-slate-400 shrink-0 transition-transform duration-200 ${isRecentExpanded ? 'rotate-0' : '-rotate-90'
+                            }`}
                         />
                       </button>
                       {isRecentExpanded && (
@@ -1418,9 +1416,8 @@ export function DashboardPage() {
                               <span>Pinned</span>
                               <ChevronDown
                                 size={14}
-                                className={`text-slate-400 shrink-0 transition-transform duration-200 ${
-                                  isPinnedExpanded ? 'rotate-0' : '-rotate-90'
-                                }`}
+                                className={`text-slate-400 shrink-0 transition-transform duration-200 ${isPinnedExpanded ? 'rotate-0' : '-rotate-90'
+                                  }`}
                               />
                             </button>
                             {isPinnedExpanded && pinnedChats.map(renderSidebarChatItem)}
@@ -1438,9 +1435,8 @@ export function DashboardPage() {
                               <span>Recents</span>
                               <ChevronDown
                                 size={14}
-                                className={`text-slate-400 shrink-0 transition-transform duration-200 ${
-                                  isRecentExpanded ? 'rotate-0' : '-rotate-90'
-                                }`}
+                                className={`text-slate-400 shrink-0 transition-transform duration-200 ${isRecentExpanded ? 'rotate-0' : '-rotate-90'
+                                  }`}
                               />
                             </button>
                             {isRecentExpanded && (
@@ -1570,8 +1566,8 @@ export function DashboardPage() {
           }}
         >
 
-          {/* STICKY TRANSPARENT TOP CONTROLS (Seamless backgroundless header) */}
-          <div className="absolute top-0 left-0 right-0 z-30 px-3 sm:px-6 py-2.5 flex items-center justify-between pointer-events-none select-none bg-gradient-to-b from-[#121214]/90 via-[#121214]/60 to-transparent backdrop-blur-md">
+          {/* FLOATING BACKGROUNDLESS TOP CONTROLS (Logo, Model Dropdown & Fullscreen) */}
+          <div className="absolute top-0 left-0 right-0 z-30 px-3 md:px-6 py-3 flex items-center justify-between pointer-events-none select-none bg-transparent border-none">
             {/* Left: Mobile Sidebar Opener + Borderless Logo + Model Selector Dropdown */}
             <div className="flex items-center gap-2 pointer-events-auto">
               {!isFullscreen && (
@@ -1620,11 +1616,11 @@ export function DashboardPage() {
             </div>
           </div>
 
-          {/* CHAT MESSAGES PANEL - Full Top-to-Bottom Unobstructed Reading Experience */}
+          {/* CHAT MESSAGES PANEL - Primary Vertical Scroll Container */}
           <div
             ref={chatViewportRef}
             onScroll={handleScroll}
-            className="flex-1 overflow-y-auto scrollbar-thin px-3 sm:px-6 lg:px-8 pt-14 pb-40 sm:pb-48 md:pb-52 flex flex-col items-center gap-4 md:gap-6 bg-transparent"
+            className="flex-1 overflow-y-auto scrollbar-thin px-3 sm:px-6 lg:px-8 pt-16 sm:pt-20 pb-44 sm:pb-52 md:pb-60 flex flex-col items-center gap-4 md:gap-6 bg-transparent"
           >
             <div className="w-full max-w-full sm:max-w-[720px] md:max-w-[780px] lg:max-w-[820px] mx-auto flex flex-col min-h-full justify-start">
 
@@ -1678,7 +1674,7 @@ export function DashboardPage() {
                         data-msg-id={message.id}
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className={`w-full scroll-mt-20 ${isUser ? 'flex flex-col items-end' : 'flex flex-col items-start'}`}
+                        className={`w-full ${isUser ? 'flex flex-col items-end' : 'flex flex-col items-start'}`}
                       >
                         {isUser ? (
                           <UserMessageBubble
