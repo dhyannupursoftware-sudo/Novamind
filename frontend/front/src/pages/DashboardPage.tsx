@@ -180,9 +180,21 @@ export function DashboardPage() {
   const [imageFullscreen, setImageFullscreen] = useState<boolean>(false)
   const [deletedAttachmentUrls, setDeletedAttachmentUrls] = useState<string[]>([])
 
-  // Reset local deleted attachment URLs filter when active chat changes
+  // Reset scroll & local state when active chat changes or new chat is created
   useEffect(() => {
     setDeletedAttachmentUrls([])
+    lastScrolledUserMsgIdRef.current = null
+
+    requestAnimationFrame(() => {
+      const container = chatViewportRef.current
+      if (container) {
+        if (!selectedChat || messages.length === 0) {
+          container.scrollTop = 0
+        } else {
+          container.scrollTop = container.scrollHeight
+        }
+      }
+    })
   }, [selectedChat?.id])
 
   const handleCopyLink = async (url: string) => {
@@ -439,7 +451,7 @@ export function DashboardPage() {
     setShowScrollTop(false)
   }
 
-  // Scroll new user question smoothly near top of chat viewport
+  // Scroll new user question smoothly near upper 20-25% of chat viewport
   const prevMessagesCountRef = useRef(messages.length)
   const lastScrolledUserMsgIdRef = useRef<string | number | null>(null)
 
@@ -457,7 +469,8 @@ export function DashboardPage() {
           if (el && container) {
             const elRect = el.getBoundingClientRect()
             const containerRect = container.getBoundingClientRect()
-            const targetScrollTop = container.scrollTop + (elRect.top - containerRect.top) - 68
+            const desiredTopOffset = Math.max(76, Math.floor(container.clientHeight * 0.22))
+            const targetScrollTop = container.scrollTop + (elRect.top - containerRect.top) - desiredTopOffset
             container.scrollTo({
               top: Math.max(0, targetScrollTop),
               behavior: 'smooth'
