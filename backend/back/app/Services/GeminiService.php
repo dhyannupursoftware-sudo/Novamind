@@ -18,8 +18,8 @@ class GeminiService
     public function __construct()
     {
         $this->apiKey = (string) (config('services.gemini.api_key') ?: env('GEMINI_API_KEY', ''));
-        $this->model = (string) (config('services.gemini.model') ?: env('GEMINI_MODEL', 'gemini-flash-latest'));
-        $this->fallbackModel = (string) (config('services.gemini.fallback_model') ?: env('GEMINI_FALLBACK_MODEL', 'gemini-1.5-flash'));
+        $this->model = (string) (config('services.gemini.model') ?: env('GEMINI_MODEL', 'gemini-3.6-flash'));
+        $this->fallbackModel = (string) (config('services.gemini.fallback_model') ?: env('GEMINI_FALLBACK_MODEL', 'gemini-3.5-flash'));
         $this->timeout = (int) (config('services.gemini.timeout') ?: (int) env('GEMINI_TIMEOUT', 30));
         $this->systemInstruction = (string) config('services.gemini.system_instruction', '');
     }
@@ -168,10 +168,10 @@ class GeminiService
         $modelsToTry = array_values(array_unique(array_filter([
             $this->model,
             $this->fallbackModel,
-            'gemini-1.5-flash',
+            'gemini-3.6-flash',
+            'gemini-3.5-flash',
+            'gemini-3.1-flash-lite',
             'gemini-flash-latest',
-            'gemini-2.5-flash',
-            'gemini-2.0-flash',
         ])));
 
         $delays = [0, 1];

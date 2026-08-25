@@ -1595,15 +1595,17 @@ export function DashboardPage() {
                 </button>
               )}
 
-              {/* Model Dropdown Selector */}
-              <ModelSelector
-                selectedModelId={selectedModel.id}
-                onSelectModel={(model) => setSelectedModel(model)}
-              />
+              {/* Model Dropdown Selector (Hidden on Mobile) */}
+              <div className="hidden md:block">
+                <ModelSelector
+                  selectedModelId={selectedModel.id}
+                  onSelectModel={(model) => setSelectedModel(model)}
+                />
+              </div>
             </div>
 
-            {/* Right: Borderless Fullscreen Toggle Button */}
-            <div className="flex items-center gap-1.5 pointer-events-auto">
+            {/* Right: Borderless Fullscreen Toggle Button (Hidden on Mobile) */}
+            <div className="hidden md:flex items-center gap-1.5 pointer-events-auto">
               <button
                 type="button"
                 onClick={toggleFullscreen}
