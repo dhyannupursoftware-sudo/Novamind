@@ -2,18 +2,30 @@ import axios, { AxiosError } from "axios";
 import type { ApiValidationError } from "../types/api";
 
 const getBaseUrl = (): string => {
-  if (import.meta.env.VITE_API_URL) {
-    const trimmed = import.meta.env.VITE_API_URL.replace(/\/+$/, "");
-    return trimmed.endsWith("/api") ? trimmed : `${trimmed}/api`;
-  }
-
-  // Automatic smart detection for local development vs production
-  if (
+  const isLocalHost =
     typeof window !== "undefined" &&
     (window.location.hostname === "localhost" ||
       window.location.hostname === "127.0.0.1" ||
-      window.location.hostname.startsWith("192.168."))
-  ) {
+      window.location.hostname.startsWith("192.168."));
+
+  const envUrl = import.meta.env.VITE_API_URL;
+
+  if (envUrl) {
+    const trimmed = envUrl.replace(/\/+$/, "");
+    const finalUrl = trimmed.endsWith("/api") ? trimmed : `${trimmed}/api`;
+    const isEnvLocalhost =
+      finalUrl.includes("localhost") || finalUrl.includes("127.0.0.1");
+
+    // If deployed on production domain but envUrl points to localhost, auto fallback to production Render URL
+    if (!isLocalHost && isEnvLocalhost) {
+      return "https://novamind-backend-mm0f.onrender.com/api";
+    }
+
+    return finalUrl;
+  }
+
+  // Automatic smart detection for local development vs production
+  if (isLocalHost) {
     return "http://127.0.0.1:8000/api";
   }
 
